@@ -1,6 +1,10 @@
 use scrypto::prelude::*;
 
-
+#[derive(NonFungibleData)]
+pub struct Receipt {
+    pub nb_of_token: Decimal,
+    pub epoch_of_conversion : Decimal
+}
 
 blueprint! {
     struct Styx {
@@ -8,7 +12,7 @@ blueprint! {
         sample_vault: Vault,
         internal_authority : Vault,
         stake : Vault,
-        //styx_adress : RessourceAddress,
+        styx_adress : ResourceAddress,
         transiant_ressource_adress: ResourceAddress
     }
 
@@ -43,12 +47,10 @@ blueprint! {
 
             let styx_adress : ResourceAddress = my_bucket.resource_address();
 
-
-
             let address = ResourceBuilder::new_non_fungible()
                 .metadata(
                     "name",
-                    "Promise token for BasicFlashLoan - must be returned to be burned!",
+                    "Promise tokenx for BasicFlashLoan - must be returned to be burned!",
                 )
                 .mintable(rule!(require(internal_admin.resource_address())), LOCKED) // 1
                 .burnable(rule!(require(internal_admin.resource_address())), LOCKED) // 1
@@ -61,7 +63,7 @@ blueprint! {
                 internal_authority: Vault::with_bucket(internal_admin),
                 transiant_ressource_adress : address,
                 stake : Vault::new(styx_adress),
-                //styx_adress,
+                styx_adress : styx_adress
             }
             .instantiate()
             .globalize()
@@ -77,8 +79,32 @@ blueprint! {
         }
 
         pub fn stake_styx(&mut self, deposit : Bucket) -> Bucket {
+            assert!(deposit.resource_address() == self.stake.resource_address());
+
             info!("You are going to stake : {}", deposit.amount());
-            deposit
+            let receipt = self.internal_authority.authorize(|| {
+                borrow_resource_manager!(self.transiant_ressource_adress).mint_non_fungible(
+                    &NonFungibleId::random(),
+                    Receipt {
+                        nb_of_token : deposit.amount(),
+                        epoch_of_conversion : dec!("10")
+                    }
+                )
+            });
+            self.stake.put(deposit);
+            receipt
+        }
+
+        pub fn unstake_styx(&mut self, receipt : Bucket) -> Bucket {
+            assert!(
+                receipt.resource_address() == self.transiant_ressource_adress
+            );
+
+            let terms : Receipt = receipt.non_fungible().data();
+
+            self.internal_authority.authorize(|| receipt.burn());
+
+            self.stake.take(terms.nb_of_token)
         }
 
 
