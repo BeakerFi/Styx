@@ -90,8 +90,8 @@ blueprint! {
                     Receipt {
                         nb_of_token : deposit.amount(),
                         epoch_of_conversion : dec!("10"),
-                        proposed_votes : Vec<u32>::new(),
-                        participation_votes : Vec<u32>::new()
+                        proposed_votes : Vec::<u32>::new(),
+                        participation_votes : Vec::<u32>::new()
                     }
                 )
             });
@@ -101,38 +101,43 @@ blueprint! {
             (receipt,deposit_proof)
         }
 
-        pub fn unstake_styx(&mut self, validated_proof : &ValidatedProof, amount: Decimal) -> Bucket {
+        pub fn unstake_styx(&mut self, proof : Proof, amount: Decimal) -> Bucket {
             
-            let ressource_manager : &mut RessourceManager = borrow_resource_manager!(self.receipt_address);
+            let resource_manager : &mut ResourceManager = borrow_resource_manager!(self.receipt_address);
+
+            let validated_proof = self.check_proof(proof);
 
             let id = validated_proof.non_fungible::<Receipt>().id();
 
             // avoir accès à validated 
-            let receipt_data : Receipt =  get_receipt_data(valid_proof);
+            let receipt : Receipt = self.get_receipt_data(&validated_proof);
 
+            assert!(receipt.nb_of_token >= amount);
 
-            assert!(receipt_data.)
+            let new_receipt = Receipt{
+                nb_of_token : receipt.nb_of_token - amount,
+                epoch_of_conversion : receipt.epoch_of_conversion,
+                proposed_votes : receipt.proposed_votes,
+                participation_votes : receipt.participation_votes
 
+            };
 
+            self.internal_authority.authorize(|| resource_manager.update_non_fungible_data(&id, new_receipt));
 
-            let terms : Receipt = receipt.non_fungible().data();
-
-            self.internal_authority.authorize(|| receipt.burn());
-
-            self.stake.take(terms.nb_of_token)
+            self.stake.take(amount)
         }
 
         /// Checks that a given [`Proof`] corresponds to a position and returns the associated
         /// [`ValidatedProof`]
-        fn check_proof(&self, position_nft: Proof) -> ValidatedProof
+        fn check_proof(&self, receipt_proof: Proof) -> ValidatedProof
         {
 
-            let valid_proof: ValidatedProof =  position_nft.validate_proof
+            let valid_proof: ValidatedProof =  receipt_proof.validate_proof
             (
                     ProofValidationMode::ValidateContainsAmount
                         (
-                            self.position_resource,
-                            dec!(1)
+                            self.receipt_address,
+                            dec!("1")
                         )
             ).expect("Invalid proof provided");
 
@@ -146,6 +151,7 @@ blueprint! {
             let id = validated_proof.non_fungible::<Receipt>().id();
             resource_manager.get_non_fungible_data::<Receipt>(&id)
         }
+
 
     }
 }
