@@ -1,5 +1,7 @@
+extern crate core;
+
 mod token_converter;
 mod ballot_box;
 pub mod decimal_maths;
-mod votes;
-mod receipt;
+mod proposals;
+mod voter_card;

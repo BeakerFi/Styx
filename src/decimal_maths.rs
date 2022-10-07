@@ -3,10 +3,10 @@
 **/
 
 use std::fmt;
-use std::ops::{Mul, Neg};
+use std::ops::Neg;
 use scrypto::dec;
 use scrypto::prelude::{Decimal, I256, I512};
-use num_bigint::{BigInt, Sign};
+use num_bigint::{BigInt};
 
 pub const EULER_CONST: Decimal = Decimal(I256([
     0x6A, 0x61, 0xB3, 0xC0, 0xEB, 0x46, 0xB9, 0x25, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -29,7 +29,7 @@ pub const SQRT_MAX: Decimal = Decimal(I256([
 ///
 /// ```
 /// use scrypto::prelude::Decimal;
-/// use Styx::decimal_maths::exp;
+/// use styx::decimal_maths::exp;
 /// let res = exp(Decimal::one());
 /// let true_res = Decimal::from(1.0_f64.exp().to_string());
 /// let diff = res - true_res;
@@ -84,7 +84,7 @@ pub fn exp<T: TryInto<Decimal>>(value: T) -> Decimal
 ///
 /// ```
 /// use scrypto::prelude::Decimal;
-/// use Styx::decimal_maths::ln;
+/// use styx::decimal_maths::ln;
 ///
 /// let res = ln(100);
 /// let true_res = Decimal::from(100.0_f64.ln().to_string());
@@ -143,7 +143,7 @@ pub fn ln<T: TryInto<Decimal>>(value: T) -> Decimal
 /// ```
 /// use scrypto::dec;
 /// use scrypto::prelude::Decimal;
-/// use Styx::decimal_maths::sqrt_3;
+/// use styx::decimal_maths::sqrt_3;
 ///
 /// let res = sqrt_3(27);
 /// let true_res = dec!(3);
@@ -215,9 +215,9 @@ pub fn cbrt<T: TryInto<Decimal>>(value:T) -> Decimal
 
 
 mod tests {
-    use scrypto::prelude::Decimal;
     use rand::Rng;
     use scrypto::dec;
+    use scrypto::math::Decimal;
     use crate::decimal_maths::{exp, ln, cbrt, SQRT_MAX, sqrt_3};
 
     #[test]
