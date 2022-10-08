@@ -34,9 +34,9 @@ impl VoterCard
         else
         {
 
-            for (id,status) in self.votes
+            for (id,status) in self.votes.iter()
             {
-                if id == proposal_id
+                if *id == proposal_id
                 {
                     // If the proposal id was found, then the voter can only vote if the status is Voting Phase
                     // And the previous status was suggestion phase

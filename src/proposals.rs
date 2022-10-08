@@ -7,8 +7,7 @@ pub enum Vote
     Against,
     Blank
 }
-
-#[derive(Clone)]
+#[derive(sbor::TypeId, sbor::Encode, sbor::Decode, sbor::Describe, Clone)]
 pub enum ProposalStatus
 {
     SuggestionPhase,
@@ -18,6 +17,7 @@ pub enum ProposalStatus
     ProposalAccepted
 }
 
+#[derive(sbor::TypeId, sbor::Encode, sbor::Decode, sbor::Describe, Clone)]
 pub enum VotingParametersChange
 {
     SupportPeriod(u64),
@@ -25,7 +25,7 @@ pub enum VotingParametersChange
     SuggestionApprovalThreshold(Decimal),
 }
 
-
+#[derive(sbor::TypeId, sbor::Encode, sbor::Decode, sbor::Describe, Clone)]
 pub struct Proposal
 {
     /// Id of the proposal

@@ -73,8 +73,8 @@ impl BallotBox
         {
             panic!("You already supported the proposition");
         }
-
-        proposal.supporting_votes = proposal.supporting_votes + self.voting_power(voter_card);
+        let voting_power = Self::voting_power(voter_card);
+        proposal.supporting_votes = proposal.supporting_votes + voting_power;
     }
 
     pub fn advance_with_proposal(&mut self, proposal_id: usize, total_tokens: Decimal)
@@ -108,7 +108,8 @@ impl BallotBox
                         if proposal.voted_for >= proposal.voted_against
                         {
                             proposal.status = ProposalStatus::ProposalAccepted;
-                            self.execute_proposal(&proposal.change);
+                            let changes = proposal.change.clone();
+                            self.execute_proposal(&changes);
                         }
                         else
                         {
@@ -141,7 +142,7 @@ impl BallotBox
         }
         else
         {
-            let nb_votes = self.voting_power(voter_card);
+            let nb_votes = Self::voting_power(voter_card);
             match proposal.delegated_votes.get_mut(&delegate_to)
             {
                 None => { proposal.delegated_votes.insert(delegate_to.clone(), nb_votes ); }
@@ -168,7 +169,7 @@ impl BallotBox
 
         if can_vote
         {
-            total_voting_power = self.voting_power(voter_card);
+            total_voting_power = Self::voting_power(voter_card);
         }
 
         match proposal.delegated_votes.get_mut(&voter_card.voter_id)
@@ -191,7 +192,7 @@ impl BallotBox
 
 
 
-    fn voting_power(&self, voter_card: &VoterCard) -> Decimal
+    fn voting_power(voter_card: &VoterCard) -> Decimal
     {
         if Runtime::current_epoch() == voter_card.epoch_of_conversion
         {
