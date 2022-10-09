@@ -1,19 +1,35 @@
+//! We define here what is a voter card, what enables users to vote and participate in the DAO.
+
 use scrypto::prelude::{Decimal};
 use scrypto::{NonFungibleData};
 use scrypto::core::Runtime;
 use crate::proposals::ProposalStatus;
 
+/// A voter card, records the different tokens locked and the epoch when they were.
+/// It also records the votes that the voters casted and the delegatees the voter has.
+/// Adding a delegatee resets the locking epoch of the tokens.
 #[derive(NonFungibleData)]
 pub struct VoterCard {
+
+    /// Id of the voter
     pub voter_id: u64,
+
+    /// Number of tokens of the voter
     pub nb_of_token: Decimal,
+
+    /// Epoch when the tokens were locked
     pub lock_epoch: u64,
+
+    /// Votes casted by the voter
     pub votes : Vec<(usize, ProposalStatus)>,
+
+    /// Possible delagtees of the voter
     pub delegatees: Vec<u64>
 }
 
 impl VoterCard
 {
+    /// Instantiates a new voter card from an id and an amount of tokens
     pub fn new(voter_id: u64, with_tokens: Option<Decimal>) -> VoterCard
     {
         let initial_tokens = match with_tokens
@@ -32,6 +48,7 @@ impl VoterCard
         }
     }
 
+    /// Returns a boolean stating whether the given voter can delegate its tokens to another given voter
     pub fn can_delegate_to(&self, other_voter: u64) -> bool
     {
         for nfid in self.delegatees.iter()
@@ -44,6 +61,7 @@ impl VoterCard
         false
     }
 
+    /// Adds a delegatee to the possible delegatees of the voter and resets the lock epoch
     pub fn add_delegatee(&mut self, other_voter: u64)
     {
         if !self.can_delegate_to(other_voter)
@@ -53,6 +71,8 @@ impl VoterCard
         }
     }
 
+    /// Returns a boolean stating if the given voter can vote for a given proposal.
+    /// If they can vote for the proposal, the list of votes is updated.
     pub fn try_vote_for(&mut self, proposal_id: usize, current_status: &ProposalStatus) -> bool
     {
         if !current_status.is_voting_phase() && !current_status.is_suggestion_phase()
@@ -91,6 +111,8 @@ impl VoterCard
 
     }
 
+    /// This function is used as a trick to be able to unit test the module.
+    /// The function `Runtime::current_epoch` returns a `Not yet implemented error`.
     #[inline]
     fn current_epoch() -> u64
     {

@@ -1,3 +1,5 @@
+//! We define here what is a ballot box, ie. the struct responsible for dealing with proposals.
+
 use std::collections::HashMap;
 use scrypto::core::Runtime;
 use scrypto::dec;
@@ -10,20 +12,36 @@ use crate::voter_card::VoterCard;
 // EPOCH cooldown : 3 months ~ 2016 epochs
 // UK: 100k signatures = parliament vote; nb_citizens: 65kk : 0.15% for a proposal to reach a vote
 
+/// A BallotBox is simply a list of proposals and some voting parameters that can be changed by voting
+/// In the future, the voting_power function that computes the voting power associated to a bunch of
+/// tokens, will also be a parameter that can be changed. Unfortunately, Scrypto doesn not enable us
+/// to use closures in blueprints yet.
 #[derive(sbor::TypeId, sbor::Encode, sbor::Decode, sbor::Describe, Clone)]
 pub struct BallotBox
 {
+    /// Id of the next proposal that will be made
     new_proposal_id: usize,
+
+    /// List of all made proposals
     proposals: Vec<Proposal>,
+
+    /// Period of time for the support phase
     support_period: u64,
+
+    /// Period of the time for the voting phase
     vote_period: u64,
+
+    /// Threshold for a suggestion to be turned into a proper vote
     suggestion_approval_threshold: Decimal,
+
+    /// Minimum of votes that should be casted for a vote to be considered legitimate
     minimum_votes_threshold: Decimal
 }
 
 impl BallotBox
 {
 
+    /// Instantiates a new BallotBox with our choice of parameters
     pub fn new() -> BallotBox
     {
 
@@ -39,6 +57,7 @@ impl BallotBox
 
     }
 
+    /// Creates a new proposal from the given parameters
     pub fn make_proposal(&mut self, description: String, suggested_change: VotingParametersChange)
     {
        let proposal = Proposal
@@ -60,6 +79,7 @@ impl BallotBox
         self.proposals.push(proposal);
     }
 
+    /// Enables a voter to support a proposal with its voter card
     pub fn support_proposal(&mut self, proposal_id: usize, voter_card: &mut VoterCard)
     {
         assert!(proposal_id < self.new_proposal_id, "This proposal does not exist!");
@@ -78,6 +98,7 @@ impl BallotBox
         proposal.supporting_votes = proposal.supporting_votes + voting_power;
     }
 
+    /// Makes a proposal advance to its next phase if possible
     pub fn advance_with_proposal(&mut self, proposal_id: usize, total_tokens: Decimal)
     {
         assert!(proposal_id < self.new_proposal_id, "This proposal does not exist!");
@@ -126,6 +147,7 @@ impl BallotBox
         }
     }
 
+    /// Enables a voter to delegate its token to another voter for the given proposal
     pub fn delegate_for_proposal(&mut self, proposal_id: usize, delegate_to: u64, voter_card: &mut VoterCard)
     {
         assert!(proposal_id < self.new_proposal_id, "This proposal does not exist!");
@@ -150,6 +172,8 @@ impl BallotBox
 
     }
 
+    /// Enables a voter to vote for a specific proposal using its own tokens and the tokens of people
+    /// who delegated to them.
     pub fn vote_for_proposal(&mut self, proposal_id: usize, voter_card: &mut VoterCard, vote: Vote)
     {
         assert!(proposal_id < self.new_proposal_id, "This proposal does not exist!");
@@ -185,6 +209,10 @@ impl BallotBox
         }
     }
 
+    /// Computes the voting power associated to a voter card
+    /// The function is power(t,x) = (tanh(-2016/t) + 1)*cbrt(ln(x)),
+    /// where `t = current_epoch - lock_epoch` and `x` is the total amount of tokens.
+    /// For more details on this choice, please read the whitepaper.
     fn voting_power(voter_card: &VoterCard) -> Decimal
     {
         if Self::current_epoch() == voter_card.lock_epoch
@@ -208,6 +236,7 @@ impl BallotBox
 
     }
 
+    /// Executes a proposal if it was accepted
     fn execute_proposal(&mut self, change_to_do: &VotingParametersChange)
     {
         match change_to_do
@@ -218,6 +247,8 @@ impl BallotBox
         }
     }
 
+    /// This function is used as a trick to be able to unit test the module.
+    /// The function `Runtime::current_epoch` returns a `Not yet implemented error`.
     fn current_epoch() -> u64
     {
         // For tests change to 0

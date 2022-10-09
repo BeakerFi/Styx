@@ -1,7 +1,12 @@
+//! We define here what is a proposal and how it can change the DAO
+
 use std::collections::HashMap;
 use scrypto::dec;
 use scrypto::prelude::{Decimal};
 
+/// A voter can not only vote For or Against a Proposal but also Blank.
+/// Blank votes are not taken into account when counting votes but we could add a reward for voting
+/// and Blank votes would count to get the reward.
 #[derive(sbor::TypeId, sbor::Encode, sbor::Decode, sbor::Describe, Clone)]
 pub enum Vote
 {
@@ -10,6 +15,8 @@ pub enum Vote
     Blank
 }
 
+
+/// Status of an ongoing Proposal
 #[derive(sbor::TypeId, sbor::Encode, sbor::Decode, sbor::Describe, Clone)]
 pub enum ProposalStatus
 {
@@ -20,6 +27,8 @@ pub enum ProposalStatus
     ProposalAccepted
 }
 
+/// Proposed change to parameters of votes. If a proposal is accepted and changes are made to the
+/// voting system, these changes are taken into accounts for new proposals.
 #[derive(sbor::TypeId, sbor::Encode, sbor::Decode, sbor::Describe, Clone)]
 pub enum VotingParametersChange
 {
@@ -28,6 +37,10 @@ pub enum VotingParametersChange
     SuggestionApprovalThreshold(Decimal),
 }
 
+/// Proposal that can be made to the DAO.
+/// A Proposal goes through different phases. Everyone can submit a Proposal and it stays in suggestion
+/// phase until a certain amount of tokens support the Proposal. After that, the Proposal goes into
+/// the voting phase and it the proposed changes are enacted if the majority votes for it.
 #[derive(sbor::TypeId, sbor::Encode, sbor::Decode, sbor::Describe, Clone)]
 pub struct Proposal
 {
@@ -43,21 +56,22 @@ pub struct Proposal
     /// Current status of the proposal
     pub status: ProposalStatus,
 
-    /// Support
+    /// Numbers of votes supporting the proposal
     pub supporting_votes: Decimal,
 
     /// Casted votes for of the proposal
     pub voted_for: Decimal,
 
+    /// Casted votes against the proposal
     pub voted_against: Decimal,
 
+    /// Casted blank votes
     pub blank_votes: Decimal,
 
     /// Number of votes delegated to a ComponentAddress
     pub delegated_votes: HashMap<u64, Decimal>,
 
-    /// To whom someone has delegated
-    /// Should use a union find algorithm in the future
+    /// To whom someone has delegated (should implement a Union-Find algorithm for better complexity)
     pub delegation_to: HashMap<u64, u64>,
 
     /// Epoch of expiration
@@ -68,6 +82,9 @@ pub struct Proposal
 impl Proposal
 {
 
+    /// Adds a delegation link between two voters and makes sure that there is no delegation loop by
+    /// doing so.
+    /// It also transfers the delagetd votes of the person delegating to the delegatee
     pub fn add_delegation(&mut self, from: u64, to: u64, amount: Decimal)
     {
 
@@ -112,6 +129,8 @@ impl Proposal
         }
     }
 
+    /// Returns the delegatee's id of a voter for the Proposal. If the voter did not delegate
+    /// its tokens to anyone, then it returns the id of the voter.
     pub fn get_delegatee(&self, of: u64) -> u64
     {
         match self.delegation_to.get(&of)

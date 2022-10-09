@@ -1,18 +1,21 @@
-/** This
-
-**/
+//! This is an extract of a mathematical library that I am building for Scrypto.
+//! Some things are still not fully optimized (it would be better to work with BigUInts).
+//! There are still some bugs when working with Decimals that are bigger than 10^41 but it is hard
+//! to debug because there are partly due to bugs in the Decimal library.
 
 use std::fmt;
 use std::ops::Neg;
 use scrypto::dec;
 use scrypto::prelude::{Decimal, I256};
 
+/// A constant equal to `e = exp(1)` also known as Euler constant. It is used for the `ln` function
 pub const EULER_CONST: Decimal = Decimal(I256([
     0x6A, 0x61, 0xB3, 0xC0, 0xEB, 0x46, 0xB9, 0x25, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00,
 ]));
 
+/// A constant equal to the square root of the largest `Decimal`. It is used in the `cbrt` function
 pub const SQRT_MAX: Decimal = Decimal(I256([
     0x85, 0xED, 0xE9, 0x51, 0x72, 0x63, 0xA4, 0x40, 0xDE, 0x32, 0x8E, 0x73, 0x1C, 0x94, 0xC1,
     0x2F, 0xDD, 0x97, 0x25, 0x2A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -46,7 +49,7 @@ pub fn exp<T: TryInto<Decimal>>(value: T) -> Decimal
     {
         return if value < dec!(-43)
         {
-            // In this case, we return because exp(-43) < 10^-18 and exp(value) could overflow
+            // Because exp(-43)< 10^-18, the smallest representable Decimal, we return 0
             Decimal::zero()
         } else {
             Decimal::ONE / exp(value.neg())
@@ -54,18 +57,27 @@ pub fn exp<T: TryInto<Decimal>>(value: T) -> Decimal
     }
     else
     {
+        // The Taylor series of exp is : exp(x) = SUM x^k / fact(k)
+
         // outputted result
         let mut result = Decimal::one();
+
         // next term of the taylor expansion
         let mut added_term = value;
+
         // counter to remember the index of the next term to add
         let mut counter = Decimal::one();
+
+
         while added_term != Decimal::zero()
         {
             result = result + added_term;
+
             counter = counter + 1;
+            // previous term was x^k/k! so the next term is:  previous*x/(k+1)
             let mut next_term = added_term /counter ;
             next_term = next_term * value;
+
             added_term = next_term;
         }
 
@@ -96,8 +108,12 @@ pub fn ln<T: TryInto<Decimal>>(value: T) -> Decimal
     let mut value = value.try_into().expect("Cannot convert to Decimal");
     assert!(value.is_positive(), "Logarithm is only defined for positive numbers");
 
-    // We rewrite value = x*e^n with x < e
-    // Therefore, ln(value) = ln(x) + n
+    // We are not using the Taylor expansion of ln because it converges too slowly
+    // To compute ln(y), we use Halley's method and we compute the sequence x_n defined by induction:
+    // x_{n+1} = x_n + ( y - exp(x_n) )/( y + exp(x_n) )
+
+    // Because, exp overflows very quickly, we rewrite y = a*e^n with a<e
+    // Therefore, ln(y) = ln(a) + n
 
     let mut n = 0;
     while value > EULER_CONST
@@ -158,7 +174,10 @@ pub fn cbrt<T: TryInto<Decimal>>(value:T) -> Decimal
         return value
     }
 
-    // Because we will using squares, we need our initial guess to be small enough not to overflow.
+    // To compute cbrt(y), we use Newton's method and we compute the sequence x_n defined by induction:
+    // x_{n+1} = ( 2x_n + y/(x_n)^2)/3
+
+    // Because we will be using squares, we need our initial guess to be small enough not to overflow.
     // Hence, if it is too big, we start by sqrt(Decimal::MAX)/2
 
     let sgn = if value.is_positive() { 1 } else { -1 };
