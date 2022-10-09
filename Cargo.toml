@@ -7,10 +7,10 @@ edition = "2021"
 sbor = { git = "https://github.com/radixdlt/radixdlt-scrypto", tag = "v0.6.0" }
 scrypto = { git = "https://github.com/radixdlt/radixdlt-scrypto", tag = "v0.6.0" }
 num-bigint = { version = "0.4.3", default-features = false }
-rand = "0.8"
 
 [dev-dependencies]
 radix-engine = { git = "https://github.com/radixdlt/radixdlt-scrypto", tag = "v0.6.0" }
+rand = "0.8"
 
 [profile.release]
 opt-level = 's'     # Optimize for size.

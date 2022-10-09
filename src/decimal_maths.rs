@@ -213,7 +213,7 @@ pub fn cbrt<T: TryInto<Decimal>>(value:T) -> Decimal
     Decimal(I256::try_from(result).unwrap())
 }
 
-
+#[cfg(test)]
 mod tests {
     use rand::Rng;
     use scrypto::dec;
