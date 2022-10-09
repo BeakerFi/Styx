@@ -31,7 +31,7 @@ fn test_hello() {
         .new_component_addresses[0];
 
 
-        
+
 
     let stx = receipt
         .expect_commit()
@@ -42,12 +42,12 @@ fn test_hello() {
     let nft = receipt
         .expect_commit()
         .entity_changes
-        .new_resource_addresses[0];
+        .new_resource_addresses[2];
 
     let autre = receipt
         .expect_commit()
         .entity_changes
-        .new_resource_addresses[2];
+        .new_resource_addresses[0];
 
     println!("The stx adress is {}",stx);
     println!("The autre adress is {}",autre);
@@ -97,7 +97,7 @@ println!("{:?}\n", receipt);
 receipt.expect_commit_success();
 
     
-    // Test the `free_token` method.
+    // Test the `free_nft` method.
         let manifest = ManifestBuilder::new(&NetworkDefinition::simulator())
         .call_method(component, "free_nft", args!())
         .call_method(
@@ -133,7 +133,7 @@ receipt.expect_commit_success();
 
     }
 
-
+ 
         // Test the `stake` method.
         let manifest = ManifestBuilder::new(&NetworkDefinition::simulator())
         .call_method(account_component, "withdraw_by_amount", args!(dec!("1"),stx))
@@ -181,6 +181,8 @@ if let Some(account_component) = test_runner.inspect_component_state(component) 
            
     receipt.expect_commit_success();
 
+
+
     // Test the `stake then unstake` method.
     let manifest = ManifestBuilder::new(&NetworkDefinition::simulator())
         .call_method(account_component, "withdraw_by_amount", args!(dec!("1"),stx))
@@ -201,8 +203,8 @@ if let Some(account_component) = test_runner.inspect_component_state(component) 
                 | builder2, proof| {
                     builder2.call_method(component, "unstake", args!(scrypto::resource::Proof(proof), dec!("1")))
                 })
+                .return_to_worktop(bucket_id)
         })
-        
         .call_method(
             account_component,
             "deposit_batch",
@@ -211,7 +213,6 @@ if let Some(account_component) = test_runner.inspect_component_state(component) 
         .build();
     let receipt : TransactionReceipt = test_runner.execute_manifest_ignoring_fee(manifest, vec![public_key.into()]);
     println!("{:?}\n", receipt);
-
 
 
     

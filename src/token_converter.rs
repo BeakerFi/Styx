@@ -1,6 +1,6 @@
 use scrypto::prelude::*;
 
-#[derive(NonFungibleData)]
+#[derive(NonFungibleData,Debug)]
 pub struct Receipt {
     pub nb_of_token: Decimal,
     pub epoch_of_conversion : Decimal,
@@ -63,7 +63,9 @@ blueprint! {
                 )
                 .mintable(rule!(require(internal_admin.resource_address())), LOCKED) // 1
                 .burnable(rule!(require(internal_admin.resource_address())), LOCKED) // 1
-                .restrict_deposit(rule!(require(internal_admin.resource_address())), MUTABLE(rule!(require(internal_admin.resource_address())))) // 1
+                .restrict_withdraw(rule!(allow_all), MUTABLE(rule!(require(internal_admin.resource_address())))) // 1
+                .updateable_non_fungible_data(rule!(require(internal_admin.resource_address())), LOCKED)
+
                 .no_initial_supply();
                 
             // Instantiate a Hello component, populating its vault with our supply of 1000 HelloToken
@@ -85,7 +87,6 @@ blueprint! {
             .globalize()
         }
 
-        styx_adress resource_sim1qryjpauavu8n6ujqsh27j87rrva7fmngrxa5n8ccajpswku5jz
 
 
         // This is a method, because it needs a reference to self.  Methods can only be called on components
@@ -93,7 +94,7 @@ blueprint! {
             info!("My balance is: {} HelloToken. Now giving away a token!", self.emission_vault.amount());
             // If the semi-colon is omitted on the last line, the last value seen is automatically returned
             // In this case, a bucket containing 1 HelloToken is returned
-            self.emission_vault.take(1)
+            self.emission_vault.take(10)
         }
 
         pub fn free_nft(&mut self) -> Bucket {
@@ -139,17 +140,27 @@ blueprint! {
         }
 
         pub fn unstake(&mut self, proof : Proof, amount: Decimal) -> Bucket {
+
+            info!("borrow_ressource_manager");
             
             let resource_manager : &mut ResourceManager = borrow_resource_manager!(self.receipt_address);
 
             let validated_proof = self.check_proof(proof);
 
+            
             let id = validated_proof.non_fungible::<Receipt>().id();
+
+            info!("On vient de récup l'id : {:?} du NFT", id);
 
             // avoir accès à validated 
             let receipt : Receipt = self.get_receipt_data(&validated_proof);
 
+            info!("On a le nft : {:?} ", receipt);
+
+
             assert!(receipt.nb_of_token >= amount);
+
+            info!("Amount ok");
 
             let new_receipt = Receipt{
                 nb_of_token : receipt.nb_of_token - amount,
@@ -159,7 +170,12 @@ blueprint! {
 
             };
 
+            info!("On a le nouveau nft : {:?} ", new_receipt);
+
+
             self.internal_authority.authorize(|| resource_manager.update_non_fungible_data(&id, new_receipt));
+
+            info!("On vient de modifier le nft");
 
             self.stake.take(amount)
         }
@@ -173,6 +189,8 @@ blueprint! {
         fn check_proof(&self, receipt_proof: Proof) -> ValidatedProof
         {
 
+            info!("La preuve {:?} est-elle valide ?",receipt_proof);
+
             let valid_proof: ValidatedProof =  receipt_proof.validate_proof
             (
                     ProofValidationMode::ValidateContainsAmount
@@ -182,6 +200,7 @@ blueprint! {
                         )
             ).expect("Invalid proof provided");
 
+            info!("La preuve {:?} est valide ?",valid_proof);
             valid_proof
         }
 
