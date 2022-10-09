@@ -34,7 +34,15 @@ fn test_hello() {
         .entity_changes
         .new_resource_addresses[1];
 
+
+    let nft = receipt
+        .expect_commit()
+        .entity_changes
+        .new_resource_addresses[0];
+
     println!("The stx adress is {}",stx);
+
+    
 
     
 
@@ -50,6 +58,7 @@ fn test_hello() {
     let receipt = test_runner.execute_manifest_ignoring_fee(manifest, vec![public_key.into()]);
     println!("{:?}\n", receipt);
     receipt.expect_commit_success();
+
     
     // Test the `free_token` method.
         let manifest = ManifestBuilder::new(&NetworkDefinition::simulator())
@@ -64,9 +73,7 @@ fn test_hello() {
     println!("{:?}\n", receipt);
     receipt.expect_commit_success();
 
-
-
-
+        //let mut nft_adress;
         // Test the `stake` method.
         let manifest = ManifestBuilder::new(&NetworkDefinition::simulator())
         .call_method(account_component, "withdraw_by_amount", args!(dec!("1"),stx))
@@ -88,7 +95,6 @@ fn test_hello() {
     let receipt : TransactionReceipt = test_runner.execute_manifest_ignoring_fee(manifest, vec![public_key.into()]);
     println!("{:?}\n", receipt);
 
- 
     /*
 
     let outcome = &receipt
@@ -106,7 +112,27 @@ fn test_hello() {
         
     receipt.expect_commit_success();
 
-
+    // Test the `stake then unstake` method.
+    let manifest = ManifestBuilder::new(&NetworkDefinition::simulator())
+    .call_method(account_component, "withdraw_by_amount", args!(dec!("1"),stx))
+    .take_from_worktop_by_amount(dec!("1"), stx, |builder, bucket_id| {
+        builder.call_method(
+            component,
+            "stake",
+            args!(
+                scrypto::resource::Bucket(bucket_id)
+            ),
+        )
+    })
+    
+    .call_method(
+        account_component,
+        "deposit_batch",
+        args!(Expression::entire_worktop()),
+    )
+    .build();
+let receipt : TransactionReceipt = test_runner.execute_manifest_ignoring_fee(manifest, vec![public_key.into()]);
+println!("{:?}\n", receipt);
 
 
     
