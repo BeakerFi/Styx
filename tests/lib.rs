@@ -73,7 +73,6 @@ fn test_hello() {
     println!("{:?}\n", receipt);
     receipt.expect_commit_success();
 
-        //let mut nft_adress;
         // Test the `stake` method.
         let manifest = ManifestBuilder::new(&NetworkDefinition::simulator())
         .call_method(account_component, "withdraw_by_amount", args!(dec!("1"),stx))
@@ -95,44 +94,40 @@ fn test_hello() {
     let receipt : TransactionReceipt = test_runner.execute_manifest_ignoring_fee(manifest, vec![public_key.into()]);
     println!("{:?}\n", receipt);
 
-    /*
-
-    let outcome = &receipt
-    .expect_commit()
-    .outcome;
-
-    match outcome {
-        TransactionOutcome::Succes(output) => {
-            println!("output{:?}",output)
-        }
-        _ => {  println!("output error") }
-        
-    }
-    */
-        
+           
     receipt.expect_commit_success();
 
     // Test the `stake then unstake` method.
     let manifest = ManifestBuilder::new(&NetworkDefinition::simulator())
-    .call_method(account_component, "withdraw_by_amount", args!(dec!("1"),stx))
-    .take_from_worktop_by_amount(dec!("1"), stx, |builder, bucket_id| {
-        builder.call_method(
-            component,
-            "stake",
-            args!(
-                scrypto::resource::Bucket(bucket_id)
-            ),
+        .call_method(account_component, "withdraw_by_amount", args!(dec!("1"),stx))
+        .take_from_worktop_by_amount(dec!("1"), stx, |builder, bucket_id| {
+            builder.call_method(
+                component,
+                "stake",
+                args!(
+                    scrypto::resource::Bucket(bucket_id)
+                ),
+            )
+        })
+
+        .take_from_worktop( nft, |builder, bucket_id| {
+            println!("{:?} \n\n\n\n\n\n\n\n\n\n\n",bucket_id);
+            builder.create_proof_from_bucket(
+                bucket_id,
+                | builder2, proof| {
+                    builder2.call_method(component, "unstake", args!(scrypto::resource::Proof(proof), dec!("1")))
+                })
+        })
+        
+        .call_method(
+            account_component,
+            "deposit_batch",
+            args!(Expression::entire_worktop()),
         )
-    })
-    
-    .call_method(
-        account_component,
-        "deposit_batch",
-        args!(Expression::entire_worktop()),
-    )
-    .build();
-let receipt : TransactionReceipt = test_runner.execute_manifest_ignoring_fee(manifest, vec![public_key.into()]);
-println!("{:?}\n", receipt);
+        .build();
+    let receipt : TransactionReceipt = test_runner.execute_manifest_ignoring_fee(manifest, vec![public_key.into()]);
+    println!("{:?}\n", receipt);
+
 
 
     
