@@ -30,8 +30,12 @@ blueprint! {
                 .metadata("name", "RegulatedToken internal authority badge")
                 .burnable(rule!(allow_all), LOCKED)
                 .initial_supply(dec!("1"));
+            info!{"Internal admin {:?}",internal_admin.resource_address()}
 
             let access_rule: AccessRule = rule!(require(internal_admin.resource_address()));
+
+            info!{"Access rules {:?}",access_rule.clone()}
+
 
             let my_bucket: Bucket = ResourceBuilder::new_fungible()
                 .divisibility(DIVISIBILITY_MAXIMUM)
@@ -47,6 +51,9 @@ blueprint! {
                 )
                 .initial_supply(dec!("100"));
 
+            info!{"Stx {:?}",my_bucket.resource_address()}
+
+
             let styx_adress : ResourceAddress = my_bucket.resource_address();
 
             let address = ResourceBuilder::new_non_fungible()
@@ -60,16 +67,25 @@ blueprint! {
                 .no_initial_supply();
                 
             // Instantiate a Hello component, populating its vault with our supply of 1000 HelloToken
-            Self {
+            let truc = Self {
                 emission_vault: Vault::with_bucket(my_bucket),
                 internal_authority: Vault::with_bucket(internal_admin),
                 receipt_address : address,
                 stake : Vault::new(styx_adress),
                 styx_adress : styx_adress
-            }
-            .instantiate()
+            };
+            info!("Guillaume \n
+            : emission_vault : {:?} \n
+            internal_authority : {:?} \n
+            receipt_address : {:?} \n
+            stake : {:?} \n
+            styx_adress : {:?} \n
+            ",&truc.emission_vault,&truc.internal_authority,&truc.receipt_address,&truc.stake,&truc.styx_adress);
+            truc.instantiate()
             .globalize()
         }
+
+        styx_adress resource_sim1qryjpauavu8n6ujqsh27j87rrva7fmngrxa5n8ccajpswku5jz
 
 
         // This is a method, because it needs a reference to self.  Methods can only be called on components
@@ -78,6 +94,27 @@ blueprint! {
             // If the semi-colon is omitted on the last line, the last value seen is automatically returned
             // In this case, a bucket containing 1 HelloToken is returned
             self.emission_vault.take(1)
+        }
+
+        pub fn free_nft(&mut self) -> Bucket {
+            info!("Je vais print un NFT de cet adress : {:?}", self.receipt_address);
+            info!("stx : {:?}", self.styx_adress);
+            info!("internal : {:?}", self.internal_authority);
+
+            // If the semi-colon is omitted on the last line, the last value seen is automatically returned
+            // In this case, a bucket containing 1 HelloToken is returned
+            let receipt = self.internal_authority.authorize(|| {
+                borrow_resource_manager!(self.receipt_address).mint_non_fungible(
+                    &NonFungibleId::random(),
+                    Receipt {
+                        nb_of_token : dec!("0"),
+                        epoch_of_conversion : dec!("10"),
+                        proposed_votes : Vec::<u32>::new(),
+                        participation_votes : Vec::<u32>::new()
+                    }
+                )
+            });
+            receipt
         }
 
         pub fn stake(&mut self, deposit : Bucket) -> (Bucket,Proof) {

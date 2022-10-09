@@ -1,5 +1,6 @@
 use radix_engine::ledger::*;
 use radix_engine::transaction::TransactionReceipt;
+use radix_engine::types::*;
 use scrypto::core::NetworkDefinition;
 use scrypto::prelude::*;
 use scrypto_unit::*;
@@ -29,6 +30,9 @@ fn test_hello() {
         .entity_changes
         .new_component_addresses[0];
 
+
+        
+
     let stx = receipt
         .expect_commit()
         .entity_changes
@@ -40,11 +44,29 @@ fn test_hello() {
         .entity_changes
         .new_resource_addresses[0];
 
+    let autre = receipt
+        .expect_commit()
+        .entity_changes
+        .new_resource_addresses[2];
+
     println!("The stx adress is {}",stx);
+    println!("The autre adress is {}",autre);
+    println!("The nft adress is {}",nft);
 
-    
-
-    
+    // See Balances:
+      let manifest = ManifestBuilder::new(&NetworkDefinition::simulator())
+      .call_method(account_component, "balance", args!(stx))
+      .call_method(account_component, "balance", args!(nft))
+      .call_method(account_component, "balance", args!(autre))
+      .call_method(
+          account_component,
+          "deposit_batch",
+          args!(Expression::entire_worktop()),
+      )
+      .build();
+  let receipt = test_runner.execute_manifest_ignoring_fee(manifest, vec![public_key.into()]);
+  println!("{:?}\n", receipt);
+  receipt.expect_commit_success();
 
     // Test the `free_token` method.
     let manifest = ManifestBuilder::new(&NetworkDefinition::simulator())
@@ -59,10 +81,25 @@ fn test_hello() {
     println!("{:?}\n", receipt);
     receipt.expect_commit_success();
 
+    // See Balances:
+    let manifest = ManifestBuilder::new(&NetworkDefinition::simulator())
+    .call_method(account_component, "balance", args!(stx))
+    .call_method(account_component, "balance", args!(nft))
+    .call_method(account_component, "balance", args!(autre))
+    .call_method(
+        account_component,
+        "deposit_batch",
+        args!(Expression::entire_worktop()),
+    )
+    .build();
+let receipt = test_runner.execute_manifest_ignoring_fee(manifest, vec![public_key.into()]);
+println!("{:?}\n", receipt);
+receipt.expect_commit_success();
+
     
     // Test the `free_token` method.
         let manifest = ManifestBuilder::new(&NetworkDefinition::simulator())
-        .call_method(component, "free_token", args!())
+        .call_method(component, "free_nft", args!())
         .call_method(
             account_component,
             "deposit_batch",
@@ -72,6 +109,30 @@ fn test_hello() {
     let receipt = test_runner.execute_manifest_ignoring_fee(manifest, vec![public_key.into()]);
     println!("{:?}\n", receipt);
     receipt.expect_commit_success();
+
+        // See Balances:
+        let manifest = ManifestBuilder::new(&NetworkDefinition::simulator())
+        .call_method(account_component, "balance", args!(stx))
+        .call_method(account_component, "balance", args!(nft))
+        .call_method(account_component, "balance", args!(autre))
+        .call_method(
+            account_component,
+            "deposit_batch",
+            args!(Expression::entire_worktop()),
+        )
+        .build();
+    let receipt = test_runner.execute_manifest_ignoring_fee(manifest, vec![public_key.into()]);
+    println!("{:?}\n", receipt);
+    receipt.expect_commit_success();
+
+
+    if let Some(account_component) = test_runner.inspect_component_state(component) {
+        let account_comp_state = ScryptoValue::from_slice(account_component.state()).unwrap();
+        println!("{:?} \n\n\n\n\n\n\n\n\n\n\n",account_comp_state);
+        // let decoded_state: StructFromContract = scrypto_decode(&account_comp_state.raw).unwrap();
+
+    }
+
 
         // Test the `stake` method.
         let manifest = ManifestBuilder::new(&NetworkDefinition::simulator())
@@ -93,6 +154,29 @@ fn test_hello() {
         .build();
     let receipt : TransactionReceipt = test_runner.execute_manifest_ignoring_fee(manifest, vec![public_key.into()]);
     println!("{:?}\n", receipt);
+
+
+        // See Balances:
+        let manifest = ManifestBuilder::new(&NetworkDefinition::simulator())
+        .call_method(account_component, "balance", args!(stx))
+        .call_method(account_component, "balance", args!(nft))
+        .call_method(
+            account_component,
+            "deposit_batch",
+            args!(Expression::entire_worktop()),
+        )
+        .build();
+    let receipt = test_runner.execute_manifest_ignoring_fee(manifest, vec![public_key.into()]);
+    println!("{:?}\n", receipt);
+    receipt.expect_commit_success();
+
+
+if let Some(account_component) = test_runner.inspect_component_state(component) {
+        let account_comp_state = ScryptoValue::from_slice(account_component.state()).unwrap();
+        println!("{:?} \n\n\n\n\n\n\n\n\n\n\n",account_comp_state);
+        // let decoded_state: StructFromContract = scrypto_decode(&account_comp_state.raw).unwrap();
+}
+
 
            
     receipt.expect_commit_success();
