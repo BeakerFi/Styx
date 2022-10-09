@@ -1,4 +1,6 @@
 use scrypto::prelude::*;
+use crate::ballot_box::BallotBox;
+use crate::proposals::{Vote, VotingParametersChange};
 use crate::voter_card::VoterCard;
 
 blueprint! {
@@ -9,7 +11,9 @@ blueprint! {
         stake : Vault,
         styx_address: ResourceAddress,
         voter_card_address: ResourceAddress,
-        new_voter_card_id: u64
+        emitted_tokens: Decimal,
+        new_voter_card_id: u64,
+        ballot_box: BallotBox,
     }
 
     impl Styx {
@@ -60,7 +64,9 @@ blueprint! {
                 voter_card_address : address,
                 stake : Vault::new(styx_address),
                 styx_address,
-                new_voter_card_id: 0
+                ballot_box: BallotBox::new(),
+                new_voter_card_id: 0,
+                emitted_tokens: Decimal::zero()
             }
             .instantiate()
             .globalize()
@@ -91,13 +97,9 @@ blueprint! {
             voter_card_bucket
         }
 
-        pub fn unlock(&mut self, proof : Proof, amount: Decimal) -> Bucket {
-
-            let resource_manager : &mut ResourceManager = borrow_resource_manager!(self.voter_card_address);
-
+        pub fn unlock(&mut self, proof : Proof, amount: Decimal) -> Bucket
+        {
             let validated_proof = self.check_proof(proof);
-
-            let id = validated_proof.non_fungible::<VoterCard>().id();
 
             // avoir accès à validated
             let voter_card : VoterCard = self.get_voter_card_data(&validated_proof);
@@ -113,11 +115,57 @@ blueprint! {
             };
 
 
-            //self.internal_authority.authorize(|| voter_card.burn());
-            self.internal_authority
-                .authorize(|| resource_manager.update_non_fungible_data(&id, new_voter_card));
+            self.change_data(&validated_proof, new_voter_card);
             self.stake.take(amount)
         }
+
+        pub fn make_proposal(&mut self, description: String, suggested_change: VotingParametersChange)
+        {
+            self.ballot_box.make_proposal(description, suggested_change);
+        }
+
+        pub fn support_proposal(&mut self, proposal_id: usize, voter_card_proof: Proof)
+        {
+            let validated_id = self.check_proof(voter_card_proof);
+            let mut voter_card = self.get_voter_card_data(&validated_id);
+
+            self.ballot_box.support_proposal(proposal_id, &mut voter_card);
+            self.change_data(&validated_id, voter_card);
+        }
+
+        pub fn advance_with_proposal(&mut self, proposal_id: usize)
+        {
+            self.ballot_box.advance_with_proposal(proposal_id, self.emitted_tokens);
+        }
+
+        pub fn delegate_for_proposal(&mut self, proposal_id: usize, delegate_to: u64, voter_card_proof: Proof)
+        {
+            let validated_id = self.check_proof(voter_card_proof);
+            let mut voter_card = self.get_voter_card_data(&validated_id);
+
+            self.ballot_box.delegate_for_proposal(proposal_id, delegate_to, &mut voter_card);
+            self.change_data(&validated_id, voter_card);
+        }
+
+        pub fn vote_for_proposal(&mut self, proposal_id: usize, voter_card_proof: Proof, vote: Vote)
+        {
+            let validated_id = self.check_proof(voter_card_proof);
+            let mut voter_card = self.get_voter_card_data(&validated_id);
+
+            self.ballot_box.vote_for_proposal(proposal_id, &mut voter_card, vote);
+            self.change_data(&validated_id, voter_card);
+        }
+
+
+        fn change_data(&self, valid_proof: &ValidatedProof, new_voter_card: VoterCard)
+        {
+            let resource_manager : &mut ResourceManager = borrow_resource_manager!(self.voter_card_address);
+            let id = valid_proof.non_fungible::<VoterCard>().id();
+            self.internal_authority
+                .authorize(|| resource_manager.update_non_fungible_data(&id, new_voter_card));
+
+        }
+
 
         /// Checks that a given [`Proof`] corresponds to a position and returns the associated
         /// [`ValidatedProof`]

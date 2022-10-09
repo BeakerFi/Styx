@@ -10,6 +10,7 @@ use crate::voter_card::VoterCard;
 // EPOCH cooldown : 3 months ~ 2016 epochs
 // UK: 100k signatures = parliament vote; nb_citizens: 65kk : 0.15% for a proposal to reach a vote
 
+#[derive(sbor::TypeId, sbor::Encode, sbor::Decode, sbor::Describe, Clone)]
 pub struct BallotBox
 {
     new_proposal_id: usize,
@@ -51,6 +52,7 @@ impl BallotBox
            voted_against: Decimal::zero(),
            blank_votes: Decimal::zero(),
            delegated_votes: HashMap::new(),
+           delegation_to: HashMap::new(),
            epoch_expiration: Self::current_epoch() + self.support_period
        };
 
@@ -127,6 +129,7 @@ impl BallotBox
     pub fn delegate_for_proposal(&mut self, proposal_id: usize, delegate_to: u64, voter_card: &mut VoterCard)
     {
         assert!(proposal_id < self.new_proposal_id, "This proposal does not exist!");
+        assert_ne!(delegate_to, voter_card.voter_id, "Delegating to yourself does not make sense");
         assert!(voter_card.can_delegate_to(delegate_to), "Cannot delegate to this person id");
 
         let proposal: &mut Proposal = self.proposals.get_mut(proposal_id).unwrap();
@@ -142,15 +145,8 @@ impl BallotBox
         else
         {
             let nb_votes = Self::voting_power(voter_card);
-            match proposal.delegated_votes.get_mut(&delegate_to)
-            {
-                None => { proposal.delegated_votes.insert(delegate_to.clone(), nb_votes ); }
-                Some(votes) => { *votes = *votes + nb_votes; }
-            }
+            proposal.add_delegation(voter_card.voter_id, delegate_to, nb_votes);
         }
-
-
-
 
     }
 
@@ -226,6 +222,7 @@ impl BallotBox
     {
         // For tests change to 0
         Runtime::current_epoch()
+
     }
 }
 
@@ -328,7 +325,6 @@ mod tests
             description,
             VotingParametersChange::VotePeriod(0)
         );
-        let proposal = ballot_box.proposals.get(0).unwrap();
         ballot_box.advance_with_proposal(0, dec!(100));
     }
 
@@ -555,10 +551,67 @@ mod tests
         ballot_box.vote_for_proposal(0, &mut voting_card_2, Vote::For);
 
         let updated_proposal = ballot_box.proposals.get(0).unwrap();
-
         assert!(updated_proposal.voted_for > dec!(1));
     }
 
+    #[test]
+    fn test_vote_for_proposal_with_only_delegated_votes()
+    {
+        let mut ballot_box = BallotBox::new();
+        let description = String::from("Test proposal");
+        ballot_box.make_proposal(
+            description,
+            VotingParametersChange::VotePeriod(0)
+        );
+        let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
+        proposal.status = ProposalStatus::VotingPhase;
 
+        let mut voting_card_1 = VoterCard::new(0, Some(dec!(1)));
+        voting_card_1.add_delegatee(1);
+        voting_card_1.lock_epoch = 2016;
+
+        let mut voting_card_2 = VoterCard::new(1, Some(dec!(1)));
+        voting_card_2.try_vote_for(0, &ProposalStatus::VotingPhase);
+
+        ballot_box.delegate_for_proposal(0, 1, &mut voting_card_1);
+
+        ballot_box.vote_for_proposal(0, &mut voting_card_2, Vote::For);
+
+        let updated_proposal = ballot_box.proposals.get(0).unwrap();
+        assert!(updated_proposal.voted_for > dec!(0));
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_vote_for_proposal_fail_not_in_voting_phase()
+    {
+        let mut ballot_box = BallotBox::new();
+        let description = String::from("Test proposal");
+        ballot_box.make_proposal(
+            description,
+            VotingParametersChange::VotePeriod(0)
+        );
+
+        let mut voting_card_1 = VoterCard::new(0, Some(dec!(1)));
+
+        ballot_box.vote_for_proposal(0, &mut voting_card_1, Vote::Blank);
+    }
+
+
+    #[test]
+    fn execute_proposal_test()
+    {
+        let mut ballot_box = BallotBox::new();
+
+        ballot_box.execute_proposal(&VotingParametersChange::VotePeriod(0));
+        assert_eq!(ballot_box.vote_period, 0);
+
+        ballot_box.execute_proposal(&VotingParametersChange::SuggestionApprovalThreshold(dec!(0)));
+        assert_eq!(ballot_box.suggestion_approval_threshold, dec!(0));
+
+        ballot_box.execute_proposal(&VotingParametersChange::SupportPeriod(0));
+        assert_eq!(ballot_box.support_period, 0);
+
+    }
 
 }

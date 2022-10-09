@@ -24,11 +24,11 @@ impl VoterCard
 
         VoterCard
         {
-            voter_id: voter_id, //new_id.clone(),
+            voter_id: voter_id,
             nb_of_token: initial_tokens,
             lock_epoch: Self::current_epoch() ,
             votes: vec![],
-            delegatees: vec![voter_id]
+            delegatees: vec![]
         }
     }
 
@@ -105,19 +105,8 @@ impl VoterCard
 #[cfg(test)]
 mod tests
 {
-    use scrypto::dec;
-    use scrypto::prelude::NonFungibleId;
     use crate::proposals::ProposalStatus;
     use crate::voter_card::VoterCard;
-
-
-    #[test]
-    fn test_correct_initialization()
-    {
-        let voter_card = VoterCard::new(0, Some(dec!(45)));
-        assert_eq!(voter_card.nb_of_token, dec!(45));
-        assert!(voter_card.can_delegate_to(voter_card.voter_id));
-    }
 
     #[test]
     fn test_delegate()
