@@ -6,8 +6,8 @@ use crate::proposals::ProposalStatus;
 #[derive(NonFungibleData)]
 pub struct VoterCard {
     pub voter_id: u64,
-    pub nb_of_token: Decimal,
-    pub lock_epoch: u64,
+    pub nb_of_token: Vec<Decimal>,
+    pub lock_epoch: Vec<u64>,
     pub votes : Vec<(usize, ProposalStatus)>,
     pub delegatees: Vec<u64>
 }
@@ -25,12 +25,13 @@ impl VoterCard
         VoterCard
         {
             voter_id: voter_id, //new_id.clone(),
-            nb_of_token: initial_tokens,
-            lock_epoch: Self::current_epoch() ,
+            nb_of_token: vec![initial_tokens],
+            lock_epoch: vec![Self::current_epoch()] ,
             votes: vec![],
             delegatees: vec![voter_id]
         }
     }
+
 
     pub fn can_delegate_to(&self, other_voter: u64) -> bool
     {
@@ -49,7 +50,8 @@ impl VoterCard
         if !self.can_delegate_to(other_voter)
         {
             self.delegatees.push(other_voter);
-            self.lock_epoch = Self::current_epoch();
+            // self.lock_epoch = Self::current_epoch(); 
+            self.init_fusion();
         }
     }
 
@@ -91,6 +93,12 @@ impl VoterCard
 
     }
 
+    fn init_fusion(&mut self){
+        let total_amount = self.nb_of_token.iter().sum();
+        self.nb_of_token = vec![total_amount];
+        self.lock_epoch = vec![Self::current_epoch()];
+    }
+
     #[inline]
     fn current_epoch() -> u64
     {
@@ -114,8 +122,8 @@ mod tests
     #[test]
     fn test_correct_initialization()
     {
-        let voter_card = VoterCard::new(0, Some(dec!(45)));
-        assert_eq!(voter_card.nb_of_token, dec!(45));
+        let voter_card = VoterCard::new(0, Some(dec!("45")));
+        assert_eq!(voter_card.nb_of_token, vec![dec!("45")]);
         assert!(voter_card.can_delegate_to(voter_card.voter_id));
     }
 
