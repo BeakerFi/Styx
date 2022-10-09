@@ -125,7 +125,7 @@ impl BallotBox
         }
     }
 
-    pub fn delegate_for_proposal(&mut self, proposal_id: usize, delegate_to: &NonFungibleId, voter_card: &mut VoterCard)
+    pub fn delegate_for_proposal(&mut self, proposal_id: usize, delegate_to: u64, voter_card: &mut VoterCard)
     {
         assert!(proposal_id < self.new_proposal_id, "This proposal does not exist!");
         assert!(voter_card.can_delegate_to(delegate_to), "Cannot delegate to this id");

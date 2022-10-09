@@ -51,7 +51,7 @@ pub struct Proposal
     pub blank_votes: Decimal,
 
     /// Number of votes delegated to a ComponentAddress
-    pub delegated_votes: HashMap<NonFungibleId, Decimal>,
+    pub delegated_votes: HashMap<u64, Decimal>,
 
     /// Epoch of expiration
     pub epoch_expiration: u64,

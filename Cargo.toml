@@ -9,7 +9,9 @@ scrypto = { git = "https://github.com/radixdlt/radixdlt-scrypto", tag = "v0.6.0"
 num-bigint = { version = "0.4.3", default-features = false }
 
 [dev-dependencies]
+transaction = { git = "https://github.com/radixdlt/radixdlt-scrypto", tag = "v0.6.0" }
 radix-engine = { git = "https://github.com/radixdlt/radixdlt-scrypto", tag = "v0.6.0" }
+scrypto-unit = { git = "https://github.com/radixdlt/radixdlt-scrypto", tag = "v0.6.0" }
 rand = "0.8"
 
 [profile.release]

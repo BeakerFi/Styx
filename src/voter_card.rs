@@ -6,11 +6,11 @@ use crate::proposals::ProposalStatus;
 
 #[derive(NonFungibleData)]
 pub struct VoterCard {
-    pub voter_id: NonFungibleId,
+    pub voter_id: u64,
     pub nb_of_token: Decimal,
     pub epoch_of_conversion : u64,
     pub votes : Vec<(usize, ProposalStatus)>,
-    pub delegatees: Vec<NonFungibleId>
+    pub delegatees: Vec<u64>
 }
 
 impl VoterCard
@@ -22,22 +22,22 @@ impl VoterCard
             None => { Decimal::zero() }
             Some(tokens) => { tokens }
         };
-        let new_id = NonFungibleId::from_u64(voter_id);
+
         VoterCard
         {
-            voter_id: new_id.clone(),
+            voter_id: voter_id, //new_id.clone(),
             nb_of_token: initial_tokens,
             epoch_of_conversion: Runtime::current_epoch() ,
             votes: vec![],
-            delegatees: vec![new_id]
+            delegatees: vec![voter_id]
         }
     }
 
-    pub fn can_delegate_to(&self, other_voter: &NonFungibleId) -> bool
+    pub fn can_delegate_to(&self, other_voter: u64) -> bool
     {
         for nfid in self.delegatees.iter()
         {
-            if nfid == other_voter
+            if *nfid == other_voter
             {
                 return true;
             }
@@ -45,9 +45,9 @@ impl VoterCard
         false
     }
 
-    pub fn add_delegatee(&mut self, other_voter: NonFungibleId)
+    pub fn add_delegatee(&mut self, other_voter: u64)
     {
-        if !self.can_delegate_to(&other_voter)
+        if !self.can_delegate_to(other_voter)
         {
             self.delegatees.push(other_voter);
             self.epoch_of_conversion = Runtime::current_epoch();
@@ -107,17 +107,16 @@ mod tests
     {
         let voter_card = VoterCard::new(0, Some(dec!(45)));
         assert_eq!(voter_card.nb_of_token, dec!(45));
-        assert!(voter_card.can_delegate_to(&voter_card.voter_id));
+        assert!(voter_card.can_delegate_to(voter_card.voter_id));
     }
 
     #[test]
     fn test_delegate()
     {
         let mut voter_card = VoterCard::new(0, None);
-        let new_id = NonFungibleId::from_u64(1);
-        voter_card.add_delegatee(new_id.clone());
+        voter_card.add_delegatee(1);
 
-        assert!(voter_card.can_delegate_to(&new_id));
+        assert!(voter_card.can_delegate_to(1));
     }
 
     #[test]
