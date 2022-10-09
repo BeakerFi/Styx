@@ -20,7 +20,7 @@ blueprint! {
 
     impl Styx {
         // Implement the functions and methods which will manage those resources and data
-        
+
         // This is a function, and can be called directly on the blueprint once deployed
         pub fn instantiate() -> ComponentAddress {
 
@@ -58,7 +58,7 @@ blueprint! {
                 .burnable(rule!(require(internal_admin.resource_address())), LOCKED) // 1
                 .restrict_deposit(rule!(require(internal_admin.resource_address())), MUTABLE(rule!(require(internal_admin.resource_address())))) // 1
                 .no_initial_supply();
-                
+
             // Instantiate a Hello component, populating its vault with our supply of 1000 HelloToken
             Self {
                 emission_vault: Vault::with_bucket(my_bucket),
@@ -102,14 +102,14 @@ blueprint! {
         }
 
         pub fn unstake(&mut self, proof : Proof, amount: Decimal) -> Bucket {
-            
+
             let resource_manager : &mut ResourceManager = borrow_resource_manager!(self.receipt_address);
 
             let validated_proof = self.check_proof(proof);
 
             let id = validated_proof.non_fungible::<Receipt>().id();
 
-            // avoir accès à validated 
+            // avoir accès à validated
             let receipt : Receipt = self.get_receipt_data(&validated_proof);
 
             assert!(receipt.nb_of_token >= amount);
@@ -122,26 +122,25 @@ blueprint! {
 
             };
 
-            self.internal_authority.authorize(|| resource_manager.update_non_fungible_data(&id, new_receipt));
 
-            self.stake.take(amount)
+            let terms : Receipt = receipt.non_fungible().data();
+
+            self.internal_authority.authorize(|| receipt.burn());
+
+            self.stake.take(terms.nb_of_token)
         }
-
-
-
-        
 
         /// Checks that a given [`Proof`] corresponds to a position and returns the associated
         /// [`ValidatedProof`]
-        fn check_proof(&self, receipt_proof: Proof) -> ValidatedProof
+        fn check_proof(&self, position_nft: Proof) -> ValidatedProof
         {
 
-            let valid_proof: ValidatedProof =  receipt_proof.validate_proof
+            let valid_proof: ValidatedProof =  position_nft.validate_proof
             (
                     ProofValidationMode::ValidateContainsAmount
                         (
-                            self.receipt_address,
-                            dec!("1")
+                            self.position_resource,
+                            dec!(1)
                         )
             ).expect("Invalid proof provided");
 
@@ -155,7 +154,6 @@ blueprint! {
             let id = validated_proof.non_fungible::<Receipt>().id();
             resource_manager.get_non_fungible_data::<Receipt>(&id)
         }
-
 
     }
 }
