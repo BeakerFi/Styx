@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-use scrypto::prelude::{Decimal, NonFungibleId};
+use scrypto::prelude::{Decimal};
 use scrypto::{NonFungibleData};
 use scrypto::core::Runtime;
 use crate::proposals::ProposalStatus;
@@ -8,7 +7,7 @@ use crate::proposals::ProposalStatus;
 pub struct VoterCard {
     pub voter_id: u64,
     pub nb_of_token: Decimal,
-    pub epoch_of_conversion : u64,
+    pub lock_epoch: u64,
     pub votes : Vec<(usize, ProposalStatus)>,
     pub delegatees: Vec<u64>
 }
@@ -27,7 +26,7 @@ impl VoterCard
         {
             voter_id: voter_id, //new_id.clone(),
             nb_of_token: initial_tokens,
-            epoch_of_conversion: Runtime::current_epoch() ,
+            lock_epoch: Self::current_epoch() ,
             votes: vec![],
             delegatees: vec![voter_id]
         }
@@ -50,7 +49,7 @@ impl VoterCard
         if !self.can_delegate_to(other_voter)
         {
             self.delegatees.push(other_voter);
-            self.epoch_of_conversion = Runtime::current_epoch();
+            self.lock_epoch = Self::current_epoch();
         }
     }
 
@@ -91,8 +90,18 @@ impl VoterCard
         }
 
     }
+
+    #[inline]
+    fn current_epoch() -> u64
+    {
+        // For tests change next line to 0
+        Runtime::current_epoch()
+    }
 }
 
+//     / \
+//    / | \  TO MAKE THE TESTS WORK, MAKE CHANGES IN THE FUNCTION current_epoch
+//   /  •  \
 #[cfg(test)]
 mod tests
 {
@@ -127,5 +136,57 @@ mod tests
 
         assert!(vote);
         assert_eq!(voter_card.votes.get(0).unwrap().0, 0);
+    }
+
+    #[test]
+    fn test_vote_for_voting_phase()
+    {
+        let mut voter_card = VoterCard::new(0, None);
+        let vote = voter_card.try_vote_for(0, &ProposalStatus::VotingPhase);
+
+        assert!(vote);
+        assert_eq!(voter_card.votes.get(0).unwrap().0, 0)
+    }
+
+    #[test]
+    fn test_already_vote_suggestion_phase()
+    {
+        let mut voter_card = VoterCard::new(0, None);
+        voter_card.try_vote_for(0, &ProposalStatus::SuggestionPhase);
+        let vote = voter_card.try_vote_for(0, &ProposalStatus::SuggestionPhase);
+
+        assert!(!vote);
+    }
+
+    #[test]
+    fn test_already_vote_suggestion_phase_2()
+    {
+        let mut voter_card = VoterCard::new(0, None);
+        voter_card.try_vote_for(0, &ProposalStatus::VotingPhase);
+        let vote = voter_card.try_vote_for(0, &ProposalStatus::SuggestionPhase);
+
+        assert!(!vote);
+    }
+
+    #[test]
+    fn test_already_vote_voting_phase()
+    {
+        let mut voter_card = VoterCard::new(0, None);
+        voter_card.try_vote_for(0, &ProposalStatus::VotingPhase);
+        let vote = voter_card.try_vote_for(0, &ProposalStatus::VotingPhase);
+
+        assert!(!vote);
+    }
+
+    #[test]
+    fn test_multiple_votes()
+    {
+        let mut voter_card = VoterCard::new(0, None);
+        for i in 0..10
+        {
+            let vote = voter_card.try_vote_for(i, &ProposalStatus::VotingPhase);
+            assert!(vote);
+            assert_eq!(voter_card.votes.get(i).unwrap().0, i);
+        }
     }
 }

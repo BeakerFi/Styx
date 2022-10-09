@@ -1,12 +1,5 @@
 use scrypto::prelude::*;
-
-#[derive(NonFungibleData)]
-pub struct Receipt {
-    pub nb_of_token: Decimal,
-    pub epoch_of_conversion : Decimal,
-    pub proposed_votes : Vec<u32>,
-    pub participation_votes : Vec<u32>
-}
+use crate::voter_card::VoterCard;
 
 blueprint! {
     struct Styx {
@@ -14,8 +7,9 @@ blueprint! {
         emission_vault: Vault,
         internal_authority : Vault,
         stake : Vault,
-        styx_adress : ResourceAddress,
-        receipt_address: ResourceAddress
+        styx_address: ResourceAddress,
+        voter_card_address: ResourceAddress,
+        new_voter_card_id: u64
     }
 
     impl Styx {
@@ -47,7 +41,7 @@ blueprint! {
                 )
                 .initial_supply(dec!("100"));
 
-            let styx_adress : ResourceAddress = my_bucket.resource_address();
+            let styx_address: ResourceAddress = my_bucket.resource_address();
 
             let address = ResourceBuilder::new_non_fungible()
                 .metadata(
@@ -63,9 +57,10 @@ blueprint! {
             Self {
                 emission_vault: Vault::with_bucket(my_bucket),
                 internal_authority: Vault::with_bucket(internal_admin),
-                receipt_address : address,
-                stake : Vault::new(styx_adress),
-                styx_adress : styx_adress
+                voter_card_address : address,
+                stake : Vault::new(styx_address),
+                styx_address,
+                new_voter_card_id: 0
             }
             .instantiate()
             .globalize()
@@ -80,54 +75,48 @@ blueprint! {
             self.emission_vault.take(1)
         }
 
-        pub fn stake(&mut self, deposit : Bucket) -> (Bucket,Proof) {
-            assert!(deposit.resource_address() == self.stake.resource_address());
+        pub fn lock(&mut self, deposit : Bucket) -> Bucket {
+            assert_eq!(deposit.resource_address(), self.stake.resource_address());
 
-            info!("You are going to stake : {}", deposit.amount());
-            let receipt = self.internal_authority.authorize(|| {
-                borrow_resource_manager!(self.receipt_address).mint_non_fungible(
-                    &NonFungibleId::random(),
-                    Receipt {
-                        nb_of_token : deposit.amount(),
-                        epoch_of_conversion : dec!("10"),
-                        proposed_votes : Vec::<u32>::new(),
-                        participation_votes : Vec::<u32>::new()
-                    }
+            info!("You are going to lock : {}", deposit.amount());
+            let voter_card_bucket = self.internal_authority.authorize(|| {
+                borrow_resource_manager!(self.voter_card_address).mint_non_fungible(
+                    &NonFungibleId::from_u64(self.new_voter_card_id),
+                    VoterCard::new(self.new_voter_card_id, Some(deposit.amount()))
                 )
             });
             self.stake.put(deposit);
+            self.new_voter_card_id+=1;
 
-            let deposit_proof = self.internal_authority.create_proof();
-            (receipt,deposit_proof)
+            voter_card_bucket
         }
 
-        pub fn unstake(&mut self, proof : Proof, amount: Decimal) -> Bucket {
+        pub fn unlock(&mut self, proof : Proof, amount: Decimal) -> Bucket {
 
-            let resource_manager : &mut ResourceManager = borrow_resource_manager!(self.receipt_address);
+            let resource_manager : &mut ResourceManager = borrow_resource_manager!(self.voter_card_address);
 
             let validated_proof = self.check_proof(proof);
 
-            let id = validated_proof.non_fungible::<Receipt>().id();
+            let id = validated_proof.non_fungible::<VoterCard>().id();
 
             // avoir accès à validated
-            let receipt : Receipt = self.get_receipt_data(&validated_proof);
+            let voter_card : VoterCard = self.get_voter_card_data(&validated_proof);
 
-            assert!(receipt.nb_of_token >= amount);
+            assert!(voter_card.nb_of_token >= amount);
 
-            let new_receipt = Receipt{
-                nb_of_token : receipt.nb_of_token - amount,
-                epoch_of_conversion : receipt.epoch_of_conversion,
-                proposed_votes : receipt.proposed_votes,
-                participation_votes : receipt.participation_votes
-
+            let new_voter_card = VoterCard{
+                voter_id: voter_card.voter_id,
+                nb_of_token : voter_card.nb_of_token - amount,
+                lock_epoch: voter_card.lock_epoch,
+                votes: vec![],
+                delegatees: vec![]
             };
 
 
-            let terms : Receipt = receipt.non_fungible().data();
-
-            self.internal_authority.authorize(|| receipt.burn());
-
-            self.stake.take(terms.nb_of_token)
+            //self.internal_authority.authorize(|| voter_card.burn());
+            self.internal_authority
+                .authorize(|| resource_manager.update_non_fungible_data(&id, new_voter_card));
+            self.stake.take(amount)
         }
 
         /// Checks that a given [`Proof`] corresponds to a position and returns the associated
@@ -139,7 +128,7 @@ blueprint! {
             (
                     ProofValidationMode::ValidateContainsAmount
                         (
-                            self.position_resource,
+                            self.voter_card_address,
                             dec!(1)
                         )
             ).expect("Invalid proof provided");
@@ -147,12 +136,12 @@ blueprint! {
             valid_proof
         }
 
-        fn get_receipt_data(&self, validated_proof: &ValidatedProof) -> Receipt
+        fn get_voter_card_data(&self, validated_proof: &ValidatedProof) -> VoterCard
         {
             let resource_manager: &ResourceManager =
-                borrow_resource_manager!(self.receipt_address);
-            let id = validated_proof.non_fungible::<Receipt>().id();
-            resource_manager.get_non_fungible_data::<Receipt>(&id)
+                borrow_resource_manager!(self.voter_card_address);
+            let id = validated_proof.non_fungible::<VoterCard>().id();
+            resource_manager.get_non_fungible_data::<VoterCard>(&id)
         }
 
     }

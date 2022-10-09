@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use scrypto::prelude::{Decimal, NonFungibleId};
+use scrypto::prelude::{Decimal};
 
 pub enum Vote
 {
@@ -74,6 +74,33 @@ impl ProposalStatus
         match self
         {
             ProposalStatus::VotingPhase => {true}
+            _ => {false}
+        }
+    }
+
+    pub fn is_suggestion_rejected(&self) -> bool
+    {
+        match self
+        {
+            ProposalStatus::SuggestionRejected => {true}
+            _ => {false}
+        }
+    }
+
+    pub fn is_proposal_rejected(&self) -> bool
+    {
+        match self
+        {
+            ProposalStatus::ProposalRejected => {true}
+            _ => {false}
+        }
+    }
+
+    pub fn is_proposal_accepted(&self) -> bool
+    {
+        match self
+        {
+            ProposalStatus::ProposalAccepted => {true}
             _ => {false}
         }
     }
