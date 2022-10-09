@@ -6,6 +6,8 @@ use scrypto::prelude::*;
 use scrypto_unit::*;
 use transaction::builder::ManifestBuilder;
 
+
+
 #[test]
 fn test_hello() {
     // Setup the environment
@@ -14,6 +16,9 @@ fn test_hello() {
 
     // Create an account
     let (public_key, _private_key, account_component) = test_runner.new_account();
+
+    // Create an second account
+    let (public_key2, _private_key2, account_component2) = test_runner.new_account();
 
     // Publish package
     let package_address = test_runner.compile_and_publish(this_package!());
@@ -156,19 +161,7 @@ receipt.expect_commit_success();
     println!("{:?}\n", receipt);
 
 
-        // See Balances:
-        let manifest = ManifestBuilder::new(&NetworkDefinition::simulator())
-        .call_method(account_component, "balance", args!(stx))
-        .call_method(account_component, "balance", args!(nft))
-        .call_method(
-            account_component,
-            "deposit_batch",
-            args!(Expression::entire_worktop()),
-        )
-        .build();
-    let receipt = test_runner.execute_manifest_ignoring_fee(manifest, vec![public_key.into()]);
-    println!("{:?}\n", receipt);
-    receipt.expect_commit_success();
+        
 
 
 if let Some(account_component) = test_runner.inspect_component_state(component) {
@@ -215,7 +208,40 @@ if let Some(account_component) = test_runner.inspect_component_state(component) 
     println!("{:?}\n", receipt);
 
 
-    
+    // See Balances:
+    let manifest = ManifestBuilder::new(&NetworkDefinition::simulator())
+    .call_method(account_component, "balance", args!(stx))
+    .call_method(account_component, "balance", args!(nft))
+    .call_method(
+        account_component,
+        "deposit_batch",
+        args!(Expression::entire_worktop()),
+    )
+    .build();
+let receipt = test_runner.execute_manifest_ignoring_fee(manifest, vec![public_key.into()]);
+println!("{:?}\n", receipt);
+receipt.expect_commit_success();
+
+
+    // Impossibility of Receipt transfer:
+    let manifest = ManifestBuilder::new(&NetworkDefinition::simulator())
+    .call_method(account_component, "withdraw", args!(nft))
+    .take_from_worktop( nft, |builder, bucket_id| {
+        builder.call_method(
+            account_component2,
+            "deposit",
+            args!(scrypto::resource::Bucket(bucket_id)
+        ))
+    })
+    .call_method(
+        account_component,
+        "deposit_batch",
+        args!(Expression::entire_worktop()),
+    )
+    .build();
+let receipt = test_runner.execute_manifest_ignoring_fee(manifest, vec![public_key.into()]);
+println!("{:?}\n", receipt);
+receipt.expect_commit_failure();
 
     
 }

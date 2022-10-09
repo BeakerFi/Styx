@@ -63,7 +63,7 @@ blueprint! {
                 )
                 .mintable(rule!(require(internal_admin.resource_address())), LOCKED) // 1
                 .burnable(rule!(require(internal_admin.resource_address())), LOCKED) // 1
-                .restrict_withdraw(rule!(allow_all), MUTABLE(rule!(require(internal_admin.resource_address())))) // 1
+                .restrict_withdraw(rule!(require(internal_admin.resource_address())), MUTABLE(rule!(require(internal_admin.resource_address())))) // 1
                 .updateable_non_fungible_data(rule!(require(internal_admin.resource_address())), LOCKED)
 
                 .no_initial_supply();
