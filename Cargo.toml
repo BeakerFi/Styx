@@ -1,18 +1,17 @@
 [package]
-name = "test2"
+name = "styx"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 sbor = { git = "https://github.com/radixdlt/radixdlt-scrypto", tag = "v0.6.0" }
 scrypto = { git = "https://github.com/radixdlt/radixdlt-scrypto", tag = "v0.6.0" }
-num-bigint = { version = "0.4.3", default-features = false }
-rand = "0.8"
 
 [dev-dependencies]
 transaction = { git = "https://github.com/radixdlt/radixdlt-scrypto", tag = "v0.6.0" }
 radix-engine = { git = "https://github.com/radixdlt/radixdlt-scrypto", tag = "v0.6.0" }
 scrypto-unit = { git = "https://github.com/radixdlt/radixdlt-scrypto", tag = "v0.6.0" }
+rand = "0.8.0"
 
 [profile.release]
 opt-level = 's'        # Optimize for size.

@@ -5,8 +5,7 @@
 use std::fmt;
 use std::ops::Neg;
 use scrypto::dec;
-use scrypto::prelude::{Decimal, I256, I512};
-use num_bigint::{BigInt};
+use scrypto::prelude::{Decimal, I256};
 
 pub const EULER_CONST: Decimal = Decimal(I256([
     0x6A, 0x61, 0xB3, 0xC0, 0xEB, 0x46, 0xB9, 0x25, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -143,13 +142,13 @@ pub fn ln<T: TryInto<Decimal>>(value: T) -> Decimal
 /// ```
 /// use scrypto::dec;
 /// use scrypto::prelude::Decimal;
-/// use styx::decimal_maths::sqrt_3;
+/// use styx::decimal_maths::{cbrt};
 ///
-/// let res = sqrt_3(27);
+/// let res = cbrt(27);
 /// let true_res = dec!(3);
 /// assert_eq!(true_res, res);
 /// ```
-pub fn sqrt_3<T: TryInto<Decimal>>(value:T) -> Decimal
+pub fn cbrt<T: TryInto<Decimal>>(value:T) -> Decimal
     where <T as TryInto<Decimal>>::Error: fmt::Debug
 {
     let value = value.try_into().expect("Cannot convert to Decimal");
@@ -191,34 +190,12 @@ pub fn sqrt_3<T: TryInto<Decimal>>(value:T) -> Decimal
 }
 
 
-pub fn cbrt<T: TryInto<Decimal>>(value:T) -> Decimal
-    where <T as TryInto<Decimal>>::Error: fmt::Debug
-{
-    let value = value.try_into().expect("Cannot convert to Decimal");
-
-    if value.abs() == Decimal::one() || value == Decimal::zero()
-    {
-        return value
-    }
-
-    // In BigInt the number is represented by x*10^18. Hence, taking the cubic root yields
-    // cbrt(x) * 10^6 and we get only 6 decimals. We multiply by 10^36 to get the right precision.
-    // In fact cbrt[(x*10^18*10^36)] = cbrt(x) * 10^(6 + 12) = cbrt(x) * 10^18
-    let pow_10_36 : I512 = I512::from(dec!("1000000000000000000000000000000000000").0 / Decimal::one().0) ;
-    let tmp_1 = BigInt::from(I512::from(value.0)) * BigInt::from(pow_10_36);
-
-
-    let result: I512 = tmp_1.cbrt().try_into().unwrap();
-
-    Decimal(I256::try_from(result).unwrap())
-}
-
-
+#[cfg(test)]
 mod tests {
     use rand::Rng;
     use scrypto::dec;
     use scrypto::math::Decimal;
-    use crate::decimal_maths::{exp, ln, cbrt, SQRT_MAX, sqrt_3};
+    use crate::decimal_maths::{exp, ln, cbrt};
 
     #[test]
     fn test_exp_zero() {
@@ -234,7 +211,8 @@ mod tests {
         let res = exp(dec_num);
         let true_res = Decimal::from(num.exp().to_string());
         let diff = res - true_res;
-        assert!(diff.abs() < Decimal::from("0.000000000000001"));
+        let acceptable_difference = 10e-14;
+        assert!(diff.abs() < Decimal::from(acceptable_difference.to_string()), "{}, {}", res, true_res);
     }
 
     #[test]
@@ -244,7 +222,8 @@ mod tests {
         let res = exp(dec_num);
         let true_res = Decimal::from(num.exp().to_string());
         let diff = res - true_res;
-        assert!(diff.abs() < Decimal::from("0.000000000000001"));
+        let acceptable_difference = 10e-14;
+        assert!(diff.abs() < Decimal::from(acceptable_difference.to_string()), "{}, {}", res, true_res);
     }
 
     #[test]
@@ -278,11 +257,12 @@ mod tests {
         let res = ln(dec_num);
         let true_res = Decimal::from(num.ln().to_string());
         let diff = res - true_res;
-        assert!(diff.abs() < Decimal::from("0.000000000000001"), "num: {}, res: {}, true_res {}", num, res, true_res);
+        let acceptable_difference = 10e-14;
+        assert!(diff.abs() < Decimal::from(acceptable_difference.to_string()), "{}, {}", res, true_res);
     }
 
     #[test]
-    fn test_sqrt_3_int()
+    fn test_cbrt_int()
     {
         let res = cbrt(729);
         let true_res = dec!(9);
@@ -290,7 +270,7 @@ mod tests {
     }
 
     #[test]
-    fn test_sqrt_3_neg_int()
+    fn test_cbrt_neg_int()
     {
         let res = cbrt(-729);
         let true_res = dec!(-9);
@@ -298,19 +278,18 @@ mod tests {
     }
 
     #[test]
-    fn test_sqrt_3_random()
+    fn test_cbrt_random()
     {
-        let range: f64 = 10e10;
+        let range: f64 = 1000.0;
         let num : f64 =  rand::thread_rng().gen_range(-range..range);
         let dec_num = Decimal::from(num.to_string());
+        println!("num: {}", num);
         let res = cbrt(dec_num);
-        let true_res_f = num.powf(1.0 / 3.0 );
-        let true_res = Decimal::from(true_res_f.to_string());
+        let true_res = Decimal::from(num.cbrt().to_string());
 
-        let other_res = sqrt_3(dec_num);
-        let pow3 = res.powi(3);
         let diff = res - true_res;
-        assert!(diff.abs() < Decimal::from("0.000000000000001"), "num: {}, res: {}, true_res {}, sqrt_3: {}, pow: {}", num, res, true_res, other_res, pow3);
+        let acceptable_difference = 10e-14;
+        assert!(diff.abs() < Decimal::from(acceptable_difference.to_string()), "{}, {}", res, true_res);
     }
 
 
