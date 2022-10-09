@@ -224,3 +224,9 @@ impl BallotBox
         }
     }
 }
+
+
+mod tests
+{
+
+}
