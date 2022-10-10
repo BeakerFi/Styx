@@ -42,7 +42,10 @@ pub enum Change
     ChangeSuggestionApprovalThreshold(Decimal),
 
     /// Allows claiming of a certain amount of resource by a voter id
-    AllowSpending(ResourceAddress, Decimal, u64)
+    AllowSpending(ResourceAddress, Decimal, u64),
+
+    /// Allows the minting of new DAO tokens
+    AllowMinting(Decimal)
 }
 
 /// Proposal that can be made to the DAO.

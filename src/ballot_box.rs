@@ -235,6 +235,10 @@ impl BallotBox
                     {
                         changes_to_return.push(Change::AllowSpending(address.clone(), amount.clone(), *to));
                     }
+                Change::AllowMinting(amount)=>
+                    {
+                        changes_to_return.push(Change::AllowMinting(amount.clone()));
+                    }
             }
         }
 

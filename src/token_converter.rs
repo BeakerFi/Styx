@@ -90,7 +90,7 @@ blueprint! {
                 styx_address,
                 ballot_box: BallotBox::new(),
                 new_voter_card_id: 0,
-                emitted_tokens: Decimal::zero(),
+                emitted_tokens: initial_supply,
                 assets_under_management: HashMap::new(),
                 claimable_tokens: HashMap::new()
             }
@@ -147,6 +147,15 @@ blueprint! {
         {
             assert!(amount < self.styx_vault.amount());
             self.styx_vault.take(amount)
+        }
+
+        pub fn emit(&mut self, amount: Decimal)
+        {
+            let bucket = self.styx_vault.authorize(|| {
+                borrow_resource_manager!(self.styx_address).mint(amount)
+            });
+            self.emitted_tokens += amount;
+            self.styx_vault.put(bucket);
         }
 
         pub fn lock(&mut self, voter_card_proof : Proof, deposit : Bucket)
@@ -222,6 +231,11 @@ blueprint! {
                             Change::AllowSpending(address, amount, to) =>
                                 {
                                     self.allow_spending(address, amount, to);
+                                }
+
+                            Change::AllowMinting(amount) =>
+                                {
+                                    self.emit(amount);
                                 }
                             _ => { panic!("critical error in code. This should not happen.") }
                         }
