@@ -91,7 +91,7 @@ blueprint! {
             let voter_card_bucket = self.internal_authority.authorize(|| {
                 borrow_resource_manager!(self.voter_card_address).mint_non_fungible(
                     &NonFungibleId::from_u64(self.new_voter_card_id),
-                    VoterCard::new(self.new_voter_card_id, None)
+                    VoterCard::new(self.new_voter_card_id)
                 )
             });
             self.new_voter_card_id+=1;
@@ -121,34 +121,27 @@ blueprint! {
             voter_card_bucket
         }
 
-        pub fn unlock(&mut self, proof : Proof, amount: Decimal) -> Bucket
+
+        pub fn lock(&mut self, voter_card_proof : Proof, deposit : Bucket)
         {
-
-
-        pub fn lock(&mut self, voter_card_proof : Proof, deposit : Bucket) {
             assert_eq!(deposit.resource_address(), self.styx_address);
-            let amount = deposit.amount();
-
-            let resource_manager : &mut ResourceManager = borrow_resource_manager!(self.voter_card_address);
 
             let validated_proof = self.check_proof(voter_card_proof);
 
-            let id = validated_proof.non_fungible::<VoterCard>().id();
+            let amount = deposit.amount();
 
             // avoir accès à validated
             let mut voter_card : VoterCard = self.get_voter_card_data_from_proof(&validated_proof);
 
 
-            voter_card.add_amount(amount);
+            voter_card.add_tokens(amount, Runtime::current_epoch());
 
-            self.internal_authority
-                .authorize(|| resource_manager.update_non_fungible_data(&id, voter_card));
+            self.change_data(&validated_proof, voter_card);
 
         }
 
-        pub fn unlock(&mut self, proof : Proof, amount: Decimal) -> Bucket {
-
-            let resource_manager : &mut ResourceManager = borrow_resource_manager!(self.voter_card_address);
+        pub fn unlock(&mut self, proof : Proof, amount: Decimal) -> Bucket
+        {
 
             let validated_proof = self.check_proof(proof);
 
@@ -157,32 +150,25 @@ blueprint! {
             assert!(voter_card.total_number_of_token >= amount);
 
             voter_card.retrieve_tokens(amount);
-            self.change_data(&validated_proof, voter_card);
-            voter_card.remove_amount(amount);
 
-            //self.internal_authority.authorize(|| voter_card.burn());
-            self.internal_authority
-                .authorize(|| resource_manager.update_non_fungible_data(&id, voter_card));
+            self.change_data(&validated_proof, voter_card);
             self.locker.take(amount)
         }
 
-        pub fn unlock_all(&mut self, proof : Proof) -> Bucket {
+        pub fn unlock_all(&mut self, proof : Proof) -> Bucket
+        {
             let validated_proof = self.check_proof(proof);
 
-            // avoir accès à validated
-            let mut voter_card: VoterCard = self.get_voter_card_data_from_proof(&validated_proof);
             let mut voter_card : VoterCard = self.get_voter_card_data_from_proof(&validated_proof);
 
-            let amount = voter_card.total_number_of_token;
-            voter_card.retrieve_tokens(amount);
-            let total_number_of_token = voter_card.remove_all();
+            let total_number_of_token = voter_card.retrieve_all_tokens();
 
             // Je pense mettre vec![] vide à la place (je ne peux pas encore), ou burn en fait
             // Ou alors pouvoir autoriser n'importe qui a burn sa carte, ou n'importe qui tant que total_number_of_token ==0
             // Ou faire fct burn_card qui unlock_all puis burn
 
             self.change_data(&validated_proof, voter_card);
-            self.locker.take(amount)
+            self.locker.take(total_number_of_token)
         }
 
         pub fn make_proposal(&mut self, description: String, suggested_change: Change)
@@ -334,8 +320,6 @@ blueprint! {
             let resource_manager : &mut ResourceManager = borrow_resource_manager!(self.voter_card_address);
             let id = valid_proof.non_fungible::<VoterCard>().id();
             self.internal_authority
-                .authorize(|| resource_manager.update_non_fungible_data(&id, voter_card));
-            self.locker.take(total_number_of_token)
                 .authorize(|| resource_manager.update_non_fungible_data(&id, new_voter_card));
         }
 

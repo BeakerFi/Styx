@@ -214,37 +214,6 @@ impl BallotBox
         }
     }
 
-    fn total_voting_power(voter_card: &VoterCard) -> Decimal
-    {
-        let mut total_power = dec!("0");
-        for i in 0..voter_card.locked_tokens.len() {
-            let epoch = voter_card.lock_epoch.get(i).unwrap();
-            let locked_tokens = voter_card.locked_tokens.get(i).unwrap();
-            total_power += Self::voting_power(*epoch,*locked_tokens);
-        }
-        total_power
-    }
-
-    fn voting_power(lock_epoch : u64, locked_tokens : Decimal ) -> Decimal {
-        if Self::current_epoch() == lock_epoch
-        {
-            return Decimal::zero();
-        }
-        // In our tests, time can get negative so we transform in Decimal before subtracting
-        let time = Decimal::from(Self::current_epoch()) - Decimal::from(lock_epoch);
-        let exp = exp(- dec!(2016) / time );
-        let time_multiplicator =  ( exp - 1 )/ (exp + 1)  + 1;
-        if time_multiplicator == Decimal::zero()
-        {
-            Decimal::zero()
-        }
-        else
-        {
-            let total = cbrt(ln(time_multiplicator*locked_tokens));
-            total.max(Decimal::zero())
-        }
-    }
-
     /// Executes a proposal if it was accepted
     fn execute_proposal(&mut self, change_to_do: &Change) -> Option<(ResourceAddress, Decimal, u64)>
     {

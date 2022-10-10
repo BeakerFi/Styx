@@ -148,7 +148,6 @@ impl VoterCard
         let total_number_of_token = self.total_number_of_token;
         self.total_number_of_token = dec!("0");
         self.locked_tokens = vec![];
-        self.lock_epoch = vec![];
         total_number_of_token
     }
 
