@@ -2,7 +2,6 @@
 
 use scrypto::prelude::{Decimal};
 use scrypto::{dec, NonFungibleData};
-use scrypto::core::Runtime;
 use crate::decimal_maths::{cbrt, exp, ln};
 use crate::proposals::ProposalStatus;
 
@@ -24,7 +23,7 @@ pub struct VoterCard {
     /// Votes casted by the voter
     pub votes : Vec<(usize, ProposalStatus)>,
 
-    /// Possible delagtees of the voter
+    /// Possible delegatees of the voter
     pub delegatees: Vec<u64>
 }
 
@@ -67,13 +66,12 @@ impl VoterCard
     }
 
     /// Adds a delegatee to the possible delegatees of the voter and resets the lock epoch
-    pub fn add_delegatee(&mut self, other_voter: u64)
+    pub fn add_delegatee(&mut self, other_voter: u64, current_epoch: u64)
     {
         if !self.can_delegate_to(other_voter)
         {
             self.delegatees.push(other_voter);
-            // self.lock_epoch = Self::current_epoch();
-            self.merge();
+            self.merge(current_epoch);
         }
     }
 
@@ -128,7 +126,7 @@ impl VoterCard
         {
             self.total_number_of_token -= amount;
             let mut amount_loop = amount;
-            while amount_loop > dec!("0")
+            while amount_loop > dec!(0)
             {
                 let (tokens,time) = self.locked_tokens.pop().unwrap();
                 if tokens > amount
@@ -144,7 +142,7 @@ impl VoterCard
     pub fn retrieve_all_tokens(&mut self) -> Decimal
     {
         let total_number_of_token = self.total_number_of_token;
-        self.total_number_of_token = dec!("0");
+        self.total_number_of_token = dec!(0);
         self.locked_tokens = vec![];
         total_number_of_token
     }
@@ -153,23 +151,23 @@ impl VoterCard
     /// The function is power(t,x) = (tanh(-2016/t) + 1)*cbrt(ln(x)),
     /// where `t = current_epoch - lock_epoch` and `x` is the total amount of tokens.
     /// For more details on this choice, please read the whitepaper.
-    pub fn voting_power(&self) -> Decimal
+    pub fn voting_power(&self, current_epoch: u64) -> Decimal
     {
         let mut total = Decimal::zero();
         for (tokens,time_tmp) in &self.locked_tokens
         {
             // In our tests, time can get negative so we transform in Decimal before subtracting
-            let time = Decimal::from(Self::current_epoch()) - Decimal::from(*time_tmp);
+            let time = current_epoch - *time_tmp;
             total = total + Self::sub_voting_function(time, *tokens);
         }
 
         total
     }
 
-    fn sub_voting_function(time: Decimal, tokens: Decimal) -> Decimal
+    fn sub_voting_function(time: u64, tokens: Decimal) -> Decimal
     {
 
-        if Decimal::from(Self::current_epoch()) == time
+        if time==0
         {
             return Decimal::zero();
         }
@@ -183,35 +181,28 @@ impl VoterCard
         }
         else
         {
-            let total = cbrt(ln(time_multiplicator*tokens));
+            let corrected_tokens = time_multiplicator*tokens + 1; // Add 1 to make sure that it is > 0
+            let total = cbrt(ln(corrected_tokens));
             total.max(Decimal::zero())
         }
     }
 
-    fn merge(&mut self)
+    fn merge(&mut self, current_epoch: u64)
     {
-        self.locked_tokens = vec![(self.total_number_of_token, Self::current_epoch())];
-    }
-
-    /// This function is used as a trick to be able to unit test the module.
-    /// The function `Runtime::current_epoch` returns a `Not yet implemented error`.
-    #[inline]
-    fn current_epoch() -> u64
-    {
-        // For tests change next line to 0
-        //Runtime::current_epoch()
-        0
+        if !self.locked_tokens.is_empty()
+        {
+            self.locked_tokens = vec![(self.total_number_of_token, current_epoch)];
+        }
     }
 }
 
-//     / \
-//    / | \  TO MAKE THE TESTS WORK, MAKE CHANGES IN THE FUNCTION current_epoch
-//   /  •  \
 #[cfg(test)]
 mod tests
 {
+    use radix_engine::ledger::TypedInMemorySubstateStore;
     use scrypto::dec;
-    use scrypto::prelude::NonFungibleId;
+    use scrypto_unit::TestRunner;
+    use transaction::builder::ManifestBuilder;
     use crate::proposals::ProposalStatus;
     use crate::voter_card::VoterCard;
 
@@ -219,17 +210,22 @@ mod tests
     #[test]
     fn test_correct_initialization()
     {
+        let mut store = TypedInMemorySubstateStore::with_bootstrap();
+        let mut test_runner = TestRunner::new(true, &mut store);
+
         let mut voter_card = VoterCard::new(0);
-        voter_card.add_tokens(dec!(45), VoterCard::current_epoch());
-        assert_eq!(voter_card.locked_tokens, vec![(dec!("45"), VoterCard::current_epoch())]);
+        voter_card.add_tokens(dec!(45), test_runner.get_current_epoch());
+        assert_eq!(voter_card.locked_tokens, vec![(dec!(45), test_runner.get_current_epoch())]);
         assert!(voter_card.can_delegate_to(voter_card.voter_id));
     }
 
     #[test]
     fn test_delegate()
     {
+        let mut store = TypedInMemorySubstateStore::with_bootstrap();
+        let mut test_runner = TestRunner::new(true, &mut store);
         let mut voter_card = VoterCard::new(0);
-        voter_card.add_delegatee(1);
+        voter_card.add_delegatee(1, test_runner.get_current_epoch());
 
         assert!(voter_card.can_delegate_to(1));
     }
