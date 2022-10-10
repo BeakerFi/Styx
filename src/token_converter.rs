@@ -173,7 +173,7 @@ blueprint! {
 
         pub fn make_proposal(&mut self, description: String, suggested_changes: Vec<Change>)
         {
-            self.ballot_box.make_proposal(description, suggested_changes);
+            self.ballot_box.make_proposal(description, suggested_changes, Runtime::current_epoch());
         }
 
         pub fn support_proposal(&mut self, proposal_id: usize, voter_card_proof: Proof)
@@ -181,13 +181,13 @@ blueprint! {
             let validated_id = self.check_proof(voter_card_proof);
             let mut voter_card = self.get_voter_card_data_from_proof(&validated_id);
 
-            self.ballot_box.support_proposal(proposal_id, &mut voter_card);
+            self.ballot_box.support_proposal(proposal_id, &mut voter_card, Runtime::current_epoch());
             self.change_data(&validated_id, voter_card);
         }
 
         pub fn advance_with_proposal(&mut self, proposal_id: usize)
         {
-            match self.ballot_box.advance_with_proposal(proposal_id, self.emitted_tokens)
+            match self.ballot_box.advance_with_proposal(proposal_id, self.emitted_tokens, Runtime::current_epoch())
             {
                 None => {}
                 Some(changes) =>
@@ -212,7 +212,7 @@ blueprint! {
             let validated_id = self.check_proof(voter_card_proof);
             let mut voter_card = self.get_voter_card_data_from_proof(&validated_id);
 
-            self.ballot_box.delegate_for_proposal(proposal_id, delegate_to, &mut voter_card);
+            self.ballot_box.delegate_for_proposal(proposal_id, delegate_to, &mut voter_card, Runtime::current_epoch());
             self.change_data(&validated_id, voter_card);
         }
 
@@ -221,7 +221,7 @@ blueprint! {
             let validated_id = self.check_proof(voter_card_proof);
             let mut voter_card = self.get_voter_card_data_from_proof(&validated_id);
 
-            self.ballot_box.vote_for_proposal(proposal_id, &mut voter_card, vote);
+            self.ballot_box.vote_for_proposal(proposal_id, &mut voter_card, vote, Runtime::current_epoch());
             self.change_data(&validated_id, voter_card);
         }
 

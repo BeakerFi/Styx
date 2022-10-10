@@ -128,4 +128,3 @@ fn test_hello() {
     let receipt : TransactionReceipt = test_runner.execute_manifest_ignoring_fee(manifest, vec![public_key.into()]);
     println!("{:?}\n", receipt);
 }
-
