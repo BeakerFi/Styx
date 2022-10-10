@@ -197,7 +197,7 @@ impl BallotBox
         }
         // In our tests, time can get negative so we transform in Decimal before subtracting
         let time = Decimal::from(Self::current_epoch()) - Decimal::from(voter_card.lock_epoch);
-        let tokens = voter_card.nb_of_token;
+        let tokens = voter_card.locked_tokens;
         let exp = exp(- dec!(2016) / time );
         let time_multiplicator =  ( exp - 1 )/ (exp + 1)  + 1;
         if time_multiplicator == Decimal::zero()

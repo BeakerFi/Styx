@@ -6,7 +6,8 @@ use crate::proposals::ProposalStatus;
 #[derive(NonFungibleData)]
 pub struct VoterCard {
     pub voter_id: u64,
-    pub nb_of_token: Vec<Decimal>,
+    pub total_number_of_token : Decimal,
+    pub locked_tokens: Vec<Decimal>,
     pub lock_epoch: Vec<u64>,
     pub votes : Vec<(usize, ProposalStatus)>,
     pub delegatees: Vec<u64>
@@ -25,7 +26,8 @@ impl VoterCard
         VoterCard
         {
             voter_id: voter_id, //new_id.clone(),
-            nb_of_token: vec![initial_tokens],
+            total_number_of_token : initial_tokens,
+            locked_tokens: vec![initial_tokens],
             lock_epoch: vec![Self::current_epoch()] ,
             votes: vec![],
             delegatees: vec![voter_id]
@@ -94,8 +96,8 @@ impl VoterCard
     }
 
     fn init_fusion(&mut self){
-        let total_amount = self.nb_of_token.iter().sum();
-        self.nb_of_token = vec![total_amount];
+        let total_amount = self.locked_tokens.iter().sum();
+        self.locked_tokens = vec![total_amount];
         self.lock_epoch = vec![Self::current_epoch()];
     }
 
@@ -123,7 +125,7 @@ mod tests
     fn test_correct_initialization()
     {
         let voter_card = VoterCard::new(0, Some(dec!("45")));
-        assert_eq!(voter_card.nb_of_token, vec![dec!("45")]);
+        assert_eq!(voter_card.locked_tokens, vec![dec!("45")]);
         assert!(voter_card.can_delegate_to(voter_card.voter_id));
     }
 

@@ -76,7 +76,7 @@ blueprint! {
             self.emission_vault.take(1)
         }
 
-        pub fn lock(&mut self, deposit : Bucket) -> Bucket {
+        pub fn lock(&mut self, voter_card : Bucket, deposit : Bucket) -> Bucket {
             assert_eq!(deposit.resource_address(), self.styx_address);
 
             info!("You are going to lock : {}", deposit.amount());
@@ -101,23 +101,57 @@ blueprint! {
             let id = validated_proof.non_fungible::<VoterCard>().id();
 
             // avoir accès à validated
-            let voter_card : VoterCard = self.get_voter_card_data(&validated_proof);
+            let mut voter_card : VoterCard = self.get_voter_card_data_from_proof(&validated_proof);
 
-            assert!(voter_card.nb_of_token >= amount);
+            assert!(voter_card.total_number_of_token >= amount);
+
+            if (voter_card.total_number_of_token == amount) {
+                return self.unlock_all(proof)
+            };
+
+            while (amount > dec!("0")) {
+                let tokens = voter_card.locked_tokens.pop().unwrap();
+                if tokens > amount {
+                    voter_card.locked_tokens.push(tokens- amount)
+                } else {
+                    voter_card.lock_epoch.pop();
+                }
+                amount = amount - tokens;
+            }
+
+            //self.internal_authority.authorize(|| voter_card.burn());
+            self.internal_authority
+                .authorize(|| resource_manager.update_non_fungible_data(&id, voter_card));
+            self.locker.take(amount)
+        }
+
+        pub fn unlock_all(&mut self, proof : Proof) -> Bucket {
+            let resource_manager : &mut ResourceManager = borrow_resource_manager!(self.voter_card_address);
+
+            let validated_proof = self.check_proof(proof);
+
+            let id = validated_proof.non_fungible::<VoterCard>().id();
+
+            // avoir accès à validated
+            let voter_card : VoterCard = self.get_voter_card_data_from_proof(&validated_proof);
 
             let new_voter_card = VoterCard{
                 voter_id: voter_card.voter_id,
-                nb_of_token : voter_card.nb_of_token - amount,
-                lock_epoch: voter_card.lock_epoch,
+                total_number_of_token : dec!("0"),
+                locked_tokens : vec![dec!("0")],
+                lock_epoch: vec![Runtime::current_epoch()],
                 votes: vec![],
                 delegatees: vec![]
             };
 
+            // Je pense mettre vec![] vide à la place (je ne peux pas encore), ou burn en fait
+            // Ou alors pouvoir autoriser n'importe qui a burn sa carte, ou n'importe qui tant que total_number_of_token ==0
+            // Ou faire fct burn_card qui unlock_all puis burn
 
             //self.internal_authority.authorize(|| voter_card.burn());
             self.internal_authority
                 .authorize(|| resource_manager.update_non_fungible_data(&id, new_voter_card));
-            self.locker.take(amount)
+            self.locker.take(voter_card.total_number_of_token)
         }
 
         /// Checks that a given [`Proof`] corresponds to a position and returns the associated
@@ -137,12 +171,21 @@ blueprint! {
             valid_proof
         }
 
-        fn get_voter_card_data(&self, validated_proof: &ValidatedProof) -> VoterCard
+        fn get_voter_card_data_from_proof(&self, validated_proof: &ValidatedProof) -> VoterCard
         {
             let resource_manager: &ResourceManager =
                 borrow_resource_manager!(self.voter_card_address);
             let id = validated_proof.non_fungible::<VoterCard>().id();
             resource_manager.get_non_fungible_data::<VoterCard>(&id)
+        }
+
+        fn get_voter_card_data(&self, voter_card_bucket : Bucket ) -> VoterCard {
+
+            let resource_manager: &ResourceManager =
+                borrow_resource_manager!(self.voter_card_address);
+            let id = voter_card_bucket.non_fungible::<VoterCard>().id();
+            resource_manager.get_non_fungible_data::<VoterCard>(&id)
+
         }
 
     }
