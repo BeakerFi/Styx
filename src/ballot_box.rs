@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use scrypto::core::Runtime;
 use scrypto::dec;
 use scrypto::math::Decimal;
-use crate::decimal_maths::{exp, ln, cbrt};
 use crate::proposals::{Proposal, ProposalStatus, Vote, VotingParametersChange};
 use crate::voter_card::VoterCard;
 
@@ -94,7 +93,7 @@ impl BallotBox
         {
             panic!("You already supported the proposition");
         }
-        let voting_power = Self::voting_power(voter_card);
+        let voting_power = voter_card.voting_power();
         proposal.supporting_votes = proposal.supporting_votes + voting_power;
     }
 
@@ -166,7 +165,7 @@ impl BallotBox
         }
         else
         {
-            let nb_votes = Self::voting_power(voter_card);
+            let nb_votes = voter_card.voting_power();
             proposal.add_delegation(voter_card.voter_id, delegate_to, nb_votes);
         }
 
@@ -188,7 +187,7 @@ impl BallotBox
 
         if can_vote
         {
-            total_voting_power = Self::voting_power(voter_card);
+            total_voting_power = voter_card.voting_power();
         }
 
         match proposal.delegated_votes.get_mut(&voter_card.voter_id)
@@ -209,33 +208,6 @@ impl BallotBox
         }
     }
 
-    /// Computes the voting power associated to a voter card
-    /// The function is power(t,x) = (tanh(-2016/t) + 1)*cbrt(ln(x)),
-    /// where `t = current_epoch - lock_epoch` and `x` is the total amount of tokens.
-    /// For more details on this choice, please read the whitepaper.
-    fn voting_power(voter_card: &VoterCard) -> Decimal
-    {
-        if Self::current_epoch() == voter_card.lock_epoch
-        {
-            return Decimal::zero();
-        }
-        // In our tests, time can get negative so we transform in Decimal before subtracting
-        let time = Decimal::from(Self::current_epoch()) - Decimal::from(voter_card.lock_epoch);
-        let tokens = voter_card.locked_tokens;
-        let exp = exp(- dec!(2016) / time );
-        let time_multiplicator =  ( exp - 1 )/ (exp + 1)  + 1;
-        if time_multiplicator == Decimal::zero()
-        {
-                Decimal::zero()
-        }
-        else
-        {
-            let total = cbrt(ln(time_multiplicator*tokens));
-            total.max(Decimal::zero())
-        }
-
-    }
-
     /// Executes a proposal if it was accepted
     fn execute_proposal(&mut self, change_to_do: &VotingParametersChange)
     {
@@ -252,8 +224,8 @@ impl BallotBox
     fn current_epoch() -> u64
     {
         // For tests change to 0
-        Runtime::current_epoch()
-
+        //Runtime::current_epoch()
+        0
     }
 }
 
@@ -263,6 +235,7 @@ impl BallotBox
 #[cfg(test)]
 mod tests
 {
+    use scrypto::core::Runtime;
     use scrypto::dec;
     use scrypto::math::Decimal;
     use crate::ballot_box::BallotBox;
@@ -298,12 +271,13 @@ mod tests
             VotingParametersChange::VotePeriod(0)
         );
 
-        let mut voting_card = VoterCard::new(0, Some(dec!(1234)));
+        let mut voting_card = VoterCard::new(0);
+        voting_card.add_tokens(dec!(1234), BallotBox::current_epoch());
         ballot_box.support_proposal(0, &mut voting_card);
 
         let proposal = ballot_box.proposals.get(0).unwrap();
 
-        assert_eq!(proposal.supporting_votes, BallotBox::voting_power(&voting_card));
+        assert_eq!(proposal.supporting_votes, voting_card.voting_power());
     }
 
     #[test]
@@ -320,7 +294,8 @@ mod tests
 
         proposal.status = ProposalStatus::VotingPhase;
 
-        let mut voting_card = VoterCard::new(0, Some(dec!(1234)));
+        let mut voting_card = VoterCard::new(0);
+        voting_card.add_tokens(dec!(1234), BallotBox::current_epoch());
 
         ballot_box.support_proposal(0, &mut voting_card);
     }
@@ -432,7 +407,8 @@ mod tests
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
-        let mut voting_card = VoterCard::new(0, Some(dec!(1234)));
+        let mut voting_card = VoterCard::new(0);
+        voting_card.add_tokens(dec!(1234), BallotBox::current_epoch());
         voting_card.add_delegatee(1);
 
         ballot_box.delegate_for_proposal(0, 1, &mut voting_card);
@@ -452,7 +428,8 @@ mod tests
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
-        let mut voting_card = VoterCard::new(0, Some(dec!(1234)));
+        let mut voting_card = VoterCard::new(0);
+        voting_card.add_tokens(dec!(1234), BallotBox::current_epoch());
 
         ballot_box.delegate_for_proposal(0, 1, &mut voting_card);
     }
@@ -467,7 +444,8 @@ mod tests
             description,
             VotingParametersChange::VotePeriod(0)
         );
-        let mut voting_card = VoterCard::new(0, Some(dec!(1234)));
+        let mut voting_card = VoterCard::new(0);
+        voting_card.add_tokens(dec!(1234), BallotBox::current_epoch());
         voting_card.add_delegatee(1);
 
         ballot_box.delegate_for_proposal(0, 1, &mut voting_card);
@@ -487,7 +465,8 @@ mod tests
         proposal.status = ProposalStatus::VotingPhase;
         proposal.epoch_expiration = 0;
 
-        let mut voting_card = VoterCard::new(0, Some(dec!(1234)));
+        let mut voting_card = VoterCard::new(0);
+        voting_card.add_tokens(dec!(1234), BallotBox::current_epoch());
         voting_card.add_delegatee(1);
 
         ballot_box.delegate_for_proposal(0,1, &mut voting_card);
@@ -506,7 +485,8 @@ mod tests
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
 
-        let mut voting_card = VoterCard::new(0, Some(dec!(1234)));
+        let mut voting_card = VoterCard::new(0);
+        voting_card.add_tokens(dec!(1234), BallotBox::current_epoch());
         voting_card.add_delegatee(1);
         voting_card.add_delegatee(2);
 
@@ -529,7 +509,8 @@ mod tests
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
 
-        let mut voting_card = VoterCard::new(0, Some(dec!(1234)));
+        let mut voting_card = VoterCard::new(0);
+        voting_card.add_tokens(dec!(1234), BallotBox::current_epoch());
         voting_card.add_delegatee(1);
         voting_card.try_vote_for(0, &ProposalStatus::VotingPhase);
 
@@ -548,8 +529,8 @@ mod tests
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
 
-        let mut voting_card = VoterCard::new(0, Some(dec!(1234)));
-        voting_card.lock_epoch = 2016;
+        let mut voting_card = VoterCard::new(0);
+        voting_card.add_tokens(dec!(1234), 2016);
 
         ballot_box.vote_for_proposal(0, &mut voting_card, Vote::For);
 
@@ -570,12 +551,12 @@ mod tests
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
 
-        let mut voting_card_1 = VoterCard::new(0, Some(dec!(1)));
+        let mut voting_card_1 = VoterCard::new(0);
         voting_card_1.add_delegatee(1);
-        voting_card_1.lock_epoch = 2016;
+        voting_card_1.add_tokens(dec!(1), 2016);
 
-        let mut voting_card_2 = VoterCard::new(1, Some(dec!(1)));
-        voting_card_2.lock_epoch = 2016;
+        let mut voting_card_2 = VoterCard::new(1);
+        voting_card_2.add_tokens(dec!(1), 2016);
 
         ballot_box.delegate_for_proposal(0, 1, &mut voting_card_1);
 
@@ -597,11 +578,12 @@ mod tests
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
 
-        let mut voting_card_1 = VoterCard::new(0, Some(dec!(1)));
+        let mut voting_card_1 = VoterCard::new(0);
         voting_card_1.add_delegatee(1);
-        voting_card_1.lock_epoch = 2016;
+        voting_card_1.add_tokens(dec!(1), 2016);
 
-        let mut voting_card_2 = VoterCard::new(1, Some(dec!(1)));
+        let mut voting_card_2 = VoterCard::new(1);
+        voting_card_2.add_tokens(dec!(1), BallotBox::current_epoch());
         voting_card_2.try_vote_for(0, &ProposalStatus::VotingPhase);
 
         ballot_box.delegate_for_proposal(0, 1, &mut voting_card_1);
@@ -623,7 +605,8 @@ mod tests
             VotingParametersChange::VotePeriod(0)
         );
 
-        let mut voting_card_1 = VoterCard::new(0, Some(dec!(1)));
+        let mut voting_card_1 = VoterCard::new(0);
+        voting_card_1.add_tokens(dec!(1), Runtime::current_epoch());
 
         ballot_box.vote_for_proposal(0, &mut voting_card_1, Vote::Blank);
     }

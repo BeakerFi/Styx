@@ -5,7 +5,6 @@ use scrypto::prelude::*;
 use scrypto_unit::*;
 use transaction::builder::ManifestBuilder;
 
-/*
 #[test]
 fn test_hello() {
     // Setup the environment
@@ -129,6 +128,4 @@ fn test_hello() {
     let receipt : TransactionReceipt = test_runner.execute_manifest_ignoring_fee(manifest, vec![public_key.into()]);
     println!("{:?}\n", receipt);
 }
-
-*/
 

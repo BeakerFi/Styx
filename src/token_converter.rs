@@ -86,10 +86,16 @@ blueprint! {
             assert_eq!(deposit.resource_address(), self.styx_address);
 
             info!("You are going to lock : {}", deposit.amount());
+            let mut voter_card = VoterCard::new(self.new_voter_card_id);
+            if !deposit.amount().is_zero()
+            {
+                voter_card.add_tokens(deposit.amount(), Runtime::current_epoch());
+            }
+
             let voter_card_bucket = self.internal_authority.authorize(|| {
                 borrow_resource_manager!(self.voter_card_address).mint_non_fungible(
                     &NonFungibleId::from_u64(self.new_voter_card_id),
-                    VoterCard::new(self.new_voter_card_id, Some(deposit.amount()))
+                    voter_card
                 )
             });
             self.locker.put(deposit);
@@ -102,58 +108,30 @@ blueprint! {
         {
             let validated_proof = self.check_proof(proof);
 
-            let id = validated_proof.non_fungible::<VoterCard>().id();
-
             // avoir accès à validated
             let mut voter_card : VoterCard = self.get_voter_card_data_from_proof(&validated_proof);
-
             assert!(voter_card.total_number_of_token >= amount);
 
-            if (voter_card.total_number_of_token == amount) {
-                return self.unlock_all(proof)
-            };
-
-            while (amount > dec!("0")) {
-                let tokens = voter_card.locked_tokens.pop().unwrap();
-                if tokens > amount {
-                    voter_card.locked_tokens.push(tokens- amount)
-                } else {
-                    voter_card.lock_epoch.pop();
-                }
-                amount = amount - tokens;
-            }
-
-            //self.internal_authority.authorize(|| voter_card.burn());
-            self.internal_authority
-                .authorize(|| resource_manager.update_non_fungible_data(&id, voter_card));
+            voter_card.retrieve_tokens(amount);
+            self.change_data(&validated_proof, voter_card);
             self.locker.take(amount)
         }
 
         pub fn unlock_all(&mut self, proof : Proof) -> Bucket {
-            let resource_manager : &mut ResourceManager = borrow_resource_manager!(self.voter_card_address);
-
             let validated_proof = self.check_proof(proof);
 
-            let id = validated_proof.non_fungible::<VoterCard>().id();
-
             // avoir accès à validated
-            let voter_card : VoterCard = self.get_voter_card_data_from_proof(&validated_proof);
+            let mut voter_card: VoterCard = self.get_voter_card_data_from_proof(&validated_proof);
 
-            let new_voter_card = VoterCard{
-                voter_id: voter_card.voter_id,
-                total_number_of_token : dec!("0"),
-                locked_tokens : vec![dec!("0")],
-                lock_epoch: vec![Runtime::current_epoch()],
-                votes: vec![],
-                delegatees: vec![]
-            };
+            let amount = voter_card.total_number_of_token;
+            voter_card.retrieve_tokens(amount);
 
             // Je pense mettre vec![] vide à la place (je ne peux pas encore), ou burn en fait
             // Ou alors pouvoir autoriser n'importe qui a burn sa carte, ou n'importe qui tant que total_number_of_token ==0
             // Ou faire fct burn_card qui unlock_all puis burn
 
-            self.change_data(&validated_proof, new_voter_card);
-            self.stake.take(amount)
+            self.change_data(&validated_proof, voter_card);
+            self.locker.take(amount)
         }
 
         pub fn make_proposal(&mut self, description: String, suggested_change: VotingParametersChange)
@@ -164,7 +142,7 @@ blueprint! {
         pub fn support_proposal(&mut self, proposal_id: usize, voter_card_proof: Proof)
         {
             let validated_id = self.check_proof(voter_card_proof);
-            let mut voter_card = self.get_voter_card_data(&validated_id);
+            let mut voter_card = self.get_voter_card_data_from_proof(&validated_id);
 
             self.ballot_box.support_proposal(proposal_id, &mut voter_card);
             self.change_data(&validated_id, voter_card);
@@ -178,7 +156,7 @@ blueprint! {
         pub fn delegate_for_proposal(&mut self, proposal_id: usize, delegate_to: u64, voter_card_proof: Proof)
         {
             let validated_id = self.check_proof(voter_card_proof);
-            let mut voter_card = self.get_voter_card_data(&validated_id);
+            let mut voter_card = self.get_voter_card_data_from_proof(&validated_id);
 
             self.ballot_box.delegate_for_proposal(proposal_id, delegate_to, &mut voter_card);
             self.change_data(&validated_id, voter_card);
@@ -187,7 +165,7 @@ blueprint! {
         pub fn vote_for_proposal(&mut self, proposal_id: usize, voter_card_proof: Proof, vote: Vote)
         {
             let validated_id = self.check_proof(voter_card_proof);
-            let mut voter_card = self.get_voter_card_data(&validated_id);
+            let mut voter_card = self.get_voter_card_data_from_proof(&validated_id);
 
             self.ballot_box.vote_for_proposal(proposal_id, &mut voter_card, vote);
             self.change_data(&validated_id, voter_card);
