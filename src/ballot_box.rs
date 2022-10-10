@@ -56,13 +56,13 @@ impl BallotBox
     }
 
     /// Creates a new proposal from the given parameters
-    pub fn make_proposal(&mut self, description: String, suggested_change: Change)
+    pub fn make_proposal(&mut self, description: String, suggested_changes: Vec<Change>)
     {
        let proposal = Proposal
        {
            id: self.new_proposal_id,
            description,
-           change: suggested_change,
+           changes: suggested_changes,
            status: ProposalStatus::SuggestionPhase,
            supporting_votes: Decimal::zero(),
            voted_for: Decimal::zero(),
@@ -98,7 +98,7 @@ impl BallotBox
 
     /// Makes a proposal advance to its next phase if possible
     pub fn advance_with_proposal(&mut self, proposal_id: usize, total_tokens: Decimal)
-        -> Option<(ResourceAddress, Decimal, u64)>
+        -> Option<Vec<Change>>
     {
         assert!(proposal_id < self.new_proposal_id, "This proposal does not exist!");
 
@@ -130,7 +130,7 @@ impl BallotBox
                         if proposal.voted_for >= proposal.voted_against
                         {
                             proposal.status = ProposalStatus::ProposalAccepted;
-                            let changes = proposal.change.clone();
+                            let changes = proposal.changes.clone();
                             self.execute_proposal(&changes)
                         }
                         else
@@ -215,31 +215,43 @@ impl BallotBox
     }
 
     /// Executes a proposal if it was accepted
-    fn execute_proposal(&mut self, change_to_do: &Change) -> Option<(ResourceAddress, Decimal, u64)>
+    fn execute_proposal(&mut self, changes_to_do: &Vec<Change>) -> Option<Vec<Change>>
     {
-        match change_to_do
+        let mut changes_to_return = vec![];
+        for change in changes_to_do
         {
-            Change::ChangeSupportPeriod(new_period) =>
-                {
-                    self.support_period = *new_period;
-                    None
-                }
-            Change::ChangeVotePeriod(new_period) =>
-                {
-                    self.vote_period = *new_period;
-                    None
-                }
-            Change::ChangeSuggestionApprovalThreshold(threshold) =>
-                {
-                    self.suggestion_approval_threshold = *threshold;
-                    None
-                }
-            Change::AllowSpending(address, amount, to) =>
-                {
-                    Some((address.clone(), amount.clone(), *to))
-                }
+            match change
+            {
+                Change::ChangeSupportPeriod(new_period) =>
+                    {
+                        self.support_period = *new_period;
+                    }
+                Change::ChangeVotePeriod(new_period) =>
+                    {
+                        self.vote_period = *new_period;
+                    }
+                Change::ChangeSuggestionApprovalThreshold(threshold) =>
+                    {
+                        self.suggestion_approval_threshold = *threshold;
+                    }
+                Change::AllowSpending(address, amount, to) =>
+                    {
+                        changes_to_return.push(Change::AllowSpending(address.clone(), amount.clone(), *to));
+                    }
+            }
         }
+
+        if changes_to_return.is_empty()
+        {
+            None
+        }
+        else
+        {
+            Some(changes_to_return)
+        }
+
     }
+
 
     /// This function is used as a trick to be able to unit test the module.
     /// The function `Runtime::current_epoch` returns a `Not yet implemented error`.
@@ -271,7 +283,7 @@ mod tests
         let description = String::from("Test proposal");
         ballot_box.make_proposal(
             description.clone(),
-            Change::ChangeVotePeriod(0)
+            vec![Change::ChangeVotePeriod(0)]
         );
 
         let proposal = ballot_box.proposals.get(0).unwrap();
@@ -290,7 +302,7 @@ mod tests
         let description = String::from("Test proposal");
         ballot_box.make_proposal(
             description,
-            Change::ChangeVotePeriod(0)
+            vec![Change::ChangeVotePeriod(0)]
         );
 
         let mut voting_card = VoterCard::new(0);
@@ -310,7 +322,7 @@ mod tests
         let description = String::from("Test proposal");
         ballot_box.make_proposal(
             description,
-            Change::ChangeVotePeriod(0)
+            vec![Change::ChangeVotePeriod(0)]
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
 
@@ -329,7 +341,7 @@ mod tests
         let description = String::from("Test proposal");
         ballot_box.make_proposal(
             description,
-            Change::ChangeVotePeriod(0)
+            vec![Change::ChangeVotePeriod(0)]
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
 
@@ -351,7 +363,7 @@ mod tests
         let description = String::from("Test proposal");
         ballot_box.make_proposal(
             description,
-            Change::ChangeVotePeriod(0)
+            vec![Change::ChangeVotePeriod(0)]
         );
         let proposal = ballot_box.proposals.get(0).unwrap();
         ballot_box.advance_with_proposal(0, dec!(100));
@@ -364,7 +376,7 @@ mod tests
         let description = String::from("Test proposal");
         ballot_box.make_proposal(
             description,
-            Change::ChangeVotePeriod(0)
+            vec![Change::ChangeVotePeriod(0)]
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
 
@@ -384,7 +396,7 @@ mod tests
         let description = String::from("Test proposal");
         ballot_box.make_proposal(
             description,
-            Change::ChangeVotePeriod(0)
+            vec![Change::ChangeVotePeriod(0)]
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
 
@@ -405,7 +417,7 @@ mod tests
         let description = String::from("Test proposal");
         ballot_box.make_proposal(
             description,
-            Change::ChangeVotePeriod(0)
+            vec![Change::ChangeVotePeriod(0)]
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
 
@@ -426,7 +438,7 @@ mod tests
         let description = String::from("Test proposal");
         ballot_box.make_proposal(
             description,
-            Change::ChangeVotePeriod(0)
+            vec![Change::ChangeVotePeriod(0)]
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
@@ -447,7 +459,7 @@ mod tests
         let description = String::from("Test proposal");
         ballot_box.make_proposal(
             description,
-            Change::ChangeVotePeriod(0)
+            vec![Change::ChangeVotePeriod(0)]
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
@@ -465,7 +477,7 @@ mod tests
         let description = String::from("Test proposal");
         ballot_box.make_proposal(
             description,
-            Change::ChangeVotePeriod(0)
+            vec![Change::ChangeVotePeriod(0)]
         );
         let mut voting_card = VoterCard::new(0);
         voting_card.add_tokens(dec!(1234), BallotBox::current_epoch());
@@ -482,7 +494,7 @@ mod tests
         let description = String::from("Test proposal");
         ballot_box.make_proposal(
             description,
-            Change::ChangeVotePeriod(0)
+            vec![Change::ChangeVotePeriod(0)]
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
@@ -503,7 +515,7 @@ mod tests
         let description = String::from("Test proposal");
         ballot_box.make_proposal(
             description,
-            Change::ChangeVotePeriod(0)
+            vec![Change::ChangeVotePeriod(0)]
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
@@ -527,7 +539,7 @@ mod tests
         let description = String::from("Test proposal");
         ballot_box.make_proposal(
             description,
-            Change::ChangeVotePeriod(0)
+            vec![Change::ChangeVotePeriod(0)]
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
@@ -547,7 +559,7 @@ mod tests
         let description = String::from("Test proposal");
         ballot_box.make_proposal(
             description,
-            Change::ChangeVotePeriod(0)
+            vec![Change::ChangeVotePeriod(0)]
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
@@ -569,7 +581,7 @@ mod tests
         let description = String::from("Test proposal");
         ballot_box.make_proposal(
             description,
-            Change::ChangeVotePeriod(0)
+            vec![Change::ChangeVotePeriod(0)]
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
@@ -597,7 +609,7 @@ mod tests
         let description = String::from("Test proposal");
         ballot_box.make_proposal(
             description,
-            Change::ChangeVotePeriod(0)
+            vec![Change::ChangeVotePeriod(0)]
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
@@ -626,7 +638,7 @@ mod tests
         let description = String::from("Test proposal");
         ballot_box.make_proposal(
             description,
-            Change::ChangeVotePeriod(0)
+            vec![Change::ChangeVotePeriod(0)]
         );
 
         let mut voting_card_1 = VoterCard::new(0);
@@ -641,15 +653,25 @@ mod tests
     {
         let mut ballot_box = BallotBox::new();
 
-        ballot_box.execute_proposal(&Change::ChangeVotePeriod(0));
+        ballot_box.execute_proposal(&vec![Change::ChangeVotePeriod(0)]);
         assert_eq!(ballot_box.vote_period, 0);
 
-        ballot_box.execute_proposal(&Change::ChangeSuggestionApprovalThreshold(dec!(0)));
+        ballot_box.execute_proposal(&vec![Change::ChangeSuggestionApprovalThreshold(dec!(0))]);
         assert_eq!(ballot_box.suggestion_approval_threshold, dec!(0));
 
-        ballot_box.execute_proposal(&Change::ChangeSupportPeriod(0));
+        ballot_box.execute_proposal(&vec![Change::ChangeSupportPeriod(0)]);
         assert_eq!(ballot_box.support_period, 0);
+    }
 
+    #[test]
+    fn execute_multiple_proposal_test()
+    {
+        let mut ballot_box = BallotBox::new();
+        let proposals = vec![Change::ChangeVotePeriod(0), Change::ChangeSuggestionApprovalThreshold(dec!(0)),Change::ChangeSupportPeriod(0)];
+        ballot_box.execute_proposal(&proposals);
+        assert_eq!(ballot_box.vote_period, 0);
+        assert_eq!(ballot_box.suggestion_approval_threshold, dec!(0));
+        assert_eq!(ballot_box.support_period, 0);
     }
 
 }

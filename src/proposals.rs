@@ -58,8 +58,8 @@ pub struct Proposal
     /// Description of the proposal
     pub description: String,
 
-    /// Change to be enacted
-    pub change: Change,
+    /// Changes to be enacted
+    pub changes: Vec<Change>,
 
     /// Current status of the proposal
     pub status: ProposalStatus,
@@ -212,7 +212,7 @@ mod tests
         {
             id: 0,
             description: "".to_string(),
-            change: Change::ChangeVotePeriod(0),
+            changes: vec![Change::ChangeVotePeriod(0)],
             status: ProposalStatus::SuggestionPhase,
             supporting_votes: Default::default(),
             voted_for: Default::default(),
@@ -236,7 +236,7 @@ mod tests
         {
             id: 0,
             description: "".to_string(),
-            change: Change::ChangeVotePeriod(0),
+            changes: vec![Change::ChangeVotePeriod(0)],
             status: ProposalStatus::SuggestionPhase,
             supporting_votes: Default::default(),
             voted_for: Default::default(),
@@ -262,7 +262,7 @@ mod tests
         {
             id: 0,
             description: "".to_string(),
-            change: Change::ChangeVotePeriod(0),
+            changes: vec![Change::ChangeVotePeriod(0)],
             status: ProposalStatus::SuggestionPhase,
             supporting_votes: Default::default(),
             voted_for: Default::default(),
@@ -288,7 +288,7 @@ mod tests
         {
             id: 0,
             description: "".to_string(),
-            change: Change::ChangeVotePeriod(0),
+            changes: vec![Change::ChangeVotePeriod(0)],
             status: ProposalStatus::SuggestionPhase,
             supporting_votes: Default::default(),
             voted_for: Default::default(),
