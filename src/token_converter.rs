@@ -184,9 +184,9 @@ blueprint! {
             self.locker.take(total_number_of_token)
         }
 
-        pub fn make_proposal(&mut self, description: String, suggested_change: Change)
+        pub fn make_proposal(&mut self, description: String, suggested_changes: Vec<Change>)
         {
-            self.ballot_box.make_proposal(description, suggested_change);
+            self.ballot_box.make_proposal(description, suggested_changes, Runtime::current_epoch());
         }
 
         pub fn support_proposal(&mut self, proposal_id: usize, voter_card_proof: Proof)
@@ -194,36 +194,27 @@ blueprint! {
             let validated_id = self.check_proof(voter_card_proof);
             let mut voter_card = self.get_voter_card_data_from_proof(&validated_id);
 
-            self.ballot_box.support_proposal(proposal_id, &mut voter_card);
+            self.ballot_box.support_proposal(proposal_id, &mut voter_card, Runtime::current_epoch());
             self.change_data(&validated_id, voter_card);
         }
 
         pub fn advance_with_proposal(&mut self, proposal_id: usize)
         {
-            match self.ballot_box.advance_with_proposal(proposal_id, self.emitted_tokens)
+            match self.ballot_box.advance_with_proposal(proposal_id, self.emitted_tokens, Runtime::current_epoch())
             {
                 None => {}
-                Some((address, amount, to)) =>
+                Some(changes) =>
                 {
-                    match self.claimable_tokens.get_mut(&to)
+                    for change in changes
                     {
-                        None =>
-                            {
-                                let mut new_hashmap: HashMap<ResourceAddress, Decimal> = HashMap::new();
-                                new_hashmap.insert(address, amount);
-                                self.claimable_tokens.insert(to, new_hashmap);
-                            },
-                        Some(hashmap) =>
-                            {
-                                match hashmap.get_mut(&address)
+                        match change
+                        {
+                            Change::AllowSpending(address, amount, to) =>
                                 {
-                                    None => { hashmap.insert(address, amount); }
-                                    Some(tokens) =>
-                                        {
-                                            *tokens = *tokens + amount;
-                                        }
+                                    self.allow_spending(address, amount, to);
                                 }
-                            }
+                            _ => { panic!("critical error in code. This should not happen.") }
+                        }
                     }
                 }
             }
@@ -234,7 +225,7 @@ blueprint! {
             let validated_id = self.check_proof(voter_card_proof);
             let mut voter_card = self.get_voter_card_data_from_proof(&validated_id);
 
-            self.ballot_box.delegate_for_proposal(proposal_id, delegate_to, &mut voter_card);
+            self.ballot_box.delegate_for_proposal(proposal_id, delegate_to, &mut voter_card, Runtime::current_epoch());
             self.change_data(&validated_id, voter_card);
         }
 
@@ -243,24 +234,31 @@ blueprint! {
             let validated_id = self.check_proof(voter_card_proof);
             let mut voter_card = self.get_voter_card_data_from_proof(&validated_id);
 
-            self.ballot_box.vote_for_proposal(proposal_id, &mut voter_card, vote);
+            self.ballot_box.vote_for_proposal(proposal_id, &mut voter_card, vote, Runtime::current_epoch());
             self.change_data(&validated_id, voter_card);
         }
 
         pub fn gift_asset(&mut self, mut asset: Bucket)
         {
-            match self.assets_under_management.get_mut(&asset.resource_address())
+            if asset.resource_address() == self.styx_address
             {
-                None =>
-                    {
-                        let mut  vault= Vault::new(asset.resource_address());
-                        vault.put(asset.take(asset.amount()));
-                        self.assets_under_management.insert(asset.resource_address(), vault);
-                    }
-                Some(vault) =>
-                    {
-                        vault.put(asset.take(asset.amount()));
-                    }
+                self.emission_vault.put(asset.take(asset.amount()))
+            }
+            else
+            {
+                match self.assets_under_management.get_mut(&asset.resource_address())
+                {
+                    None =>
+                        {
+                            let mut  vault= Vault::new(asset.resource_address());
+                            vault.put(asset.take(asset.amount()));
+                            self.assets_under_management.insert(asset.resource_address(), vault);
+                        }
+                    Some(vault) =>
+                        {
+                            vault.put(asset.take(asset.amount()));
+                        }
+                }
             }
         }
 
@@ -290,7 +288,20 @@ blueprint! {
 
                         for (resource, amount) in hashmap.iter_mut()
                         {
-                            match self.assets_under_management.get_mut(&resource)
+                            let mut opt_bucket = None;
+                            let mut opt_resource_to_remove = None;
+
+                            let vault_to_take_from : Option<&mut Vault>;
+
+                            if *resource == self.styx_address
+                            {
+                                vault_to_take_from = Some(&mut self.emission_vault);
+                            }
+                            else {
+                                vault_to_take_from = self.assets_under_management.get_mut(resource);
+                            }
+
+                            match vault_to_take_from
                             {
                                 None => {}
                                 Some(vault) =>
@@ -303,16 +314,29 @@ blueprint! {
 
                                         if amount_to_take == owned
                                         {
+                                            // If the resource is the DAO token then this line does not do anything
                                             self.assets_under_management.remove(&resource);
                                         }
 
                                         *amount = *amount - amount_to_take;
-                                        buckets.push(new_bucket);
+                                        opt_bucket = Some(new_bucket);
                                         if amount.is_zero()
                                         {
-                                            resource_to_remove.push(*resource);
+                                            opt_resource_to_remove = Some(*resource);
                                         }
                                     }
+                            }
+
+                            match opt_bucket
+                            {
+                                None => {},
+                                Some(bucket) => { buckets.push(bucket); }
+                            }
+
+                            match opt_resource_to_remove
+                            {
+                                None => {},
+                                Some(resource_rem) => {resource_to_remove.push(resource_rem);}
                             }
                         }
 
@@ -327,6 +351,32 @@ blueprint! {
             buckets
         }
 
+
+        fn allow_spending(&mut self, address: ResourceAddress, amount: Decimal, to: u64)
+        {
+
+            match self.claimable_tokens.get_mut(&to)
+            {
+                None =>
+                    {
+                        let mut new_hashmap: HashMap<ResourceAddress, Decimal> = HashMap::new();
+                        new_hashmap.insert(address, amount);
+                        self.claimable_tokens.insert(to, new_hashmap);
+                    },
+                Some(hashmap) =>
+                    {
+                        match hashmap.get_mut(&address)
+                        {
+                            None => { hashmap.insert(address, amount); }
+                            Some(tokens) =>
+                                {
+                                    *tokens = *tokens + amount;
+                                }
+                        }
+                    }
+            }
+
+        }
 
         fn change_data(&self, valid_proof: &ValidatedProof, new_voter_card: VoterCard)
         {
