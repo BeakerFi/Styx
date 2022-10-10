@@ -45,6 +45,7 @@ impl VoterCard
 
     pub fn add_tokens(&mut self, amount: Decimal, lock_period: u64)
     {
+        self.total_number_of_token += amount;
         self.locked_tokens.push((amount, lock_period));
     }
 
@@ -113,7 +114,6 @@ impl VoterCard
             self.votes.push((proposal_id, current_status.clone()));
             true
         }
-
     }
 
     pub fn retrieve_tokens(&mut self, amount: Decimal)
@@ -141,6 +141,15 @@ impl VoterCard
                 amount_loop = amount_loop - tokens;
             }
         }
+    }
+
+    pub fn retrieve_all_tokens(&mut self) -> Decimal
+    {
+        let total_number_of_token = self.total_number_of_token;
+        self.total_number_of_token = dec!("0");
+        self.locked_tokens = vec![];
+        self.lock_epoch = vec![];
+        total_number_of_token
     }
 
     /// Computes the voting power associated to a voter card
