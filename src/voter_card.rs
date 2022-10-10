@@ -2,6 +2,8 @@ use scrypto::prelude::{Decimal};
 use scrypto::{NonFungibleData};
 use scrypto::core::Runtime;
 use crate::proposals::ProposalStatus;
+use scrypto::dec;
+
 
 #[derive(NonFungibleData)]
 pub struct VoterCard {
@@ -39,6 +41,38 @@ impl VoterCard
         self.locked_tokens.push(amount);
         self.lock_epoch.push(Self::current_epoch())
     }
+
+
+    pub fn remove_amount(&mut self, amount : Decimal){
+
+        if self.total_number_of_token == amount {
+            self.remove_all();
+        } 
+        else {
+
+            while (amount > dec!("0")) {
+                let tokens = self.locked_tokens.pop().unwrap();
+                if tokens > amount {
+                    self.locked_tokens.push(tokens - amount)
+                    // putain je deviens matrixé : ça fait gagner 2 opérations (soustraction + comparaison si je break là). En fait on peut faire encore plus moche et mettre un While True si je fais ça, ça vaut le coup ?
+                } else {
+                    self.lock_epoch.pop();
+                }
+                amount = amount - tokens;
+            }
+
+        }
+
+    }
+
+    pub fn remove_all(&mut self) -> Decimal {
+        let total_number_of_token = self.total_number_of_token;
+        self.total_number_of_token = dec!("0");
+        self.locked_tokens = vec![];
+        self.lock_epoch = vec![];
+        total_number_of_token
+    }
+
 
 
     pub fn can_delegate_to(&self, other_voter: u64) -> bool

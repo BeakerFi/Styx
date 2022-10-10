@@ -105,7 +105,7 @@ blueprint! {
             voter_card_bucket
         }
 
-        
+
 
         pub fn lock(&mut self, voter_card_proof : Proof, deposit : Bucket) {
             assert_eq!(deposit.resource_address(), self.styx_address);
@@ -141,19 +141,7 @@ blueprint! {
 
             assert!(voter_card.total_number_of_token >= amount);
 
-            if (voter_card.total_number_of_token == amount) {
-                return self.unlock_all(proof)
-            };
-
-            while (amount > dec!("0")) {
-                let tokens = voter_card.locked_tokens.pop().unwrap();
-                if tokens > amount {
-                    voter_card.locked_tokens.push(tokens- amount)
-                } else {
-                    voter_card.lock_epoch.pop();
-                }
-                amount = amount - tokens;
-            }
+            voter_card.remove_amount(amount);
 
             //self.internal_authority.authorize(|| voter_card.burn());
             self.internal_authority
@@ -169,16 +157,9 @@ blueprint! {
             let id = validated_proof.non_fungible::<VoterCard>().id();
 
             // avoir accès à validated
-            let voter_card : VoterCard = self.get_voter_card_data_from_proof(&validated_proof);
+            let mut voter_card : VoterCard = self.get_voter_card_data_from_proof(&validated_proof);
 
-            let new_voter_card = VoterCard{
-                voter_id: voter_card.voter_id,
-                total_number_of_token : dec!("0"),
-                locked_tokens : vec![dec!("0")],
-                lock_epoch: vec![Runtime::current_epoch()],
-                votes: vec![],
-                delegatees: vec![]
-            };
+            let total_number_of_token = voter_card.remove_all();
 
             // Je pense mettre vec![] vide à la place (je ne peux pas encore), ou burn en fait
             // Ou alors pouvoir autoriser n'importe qui a burn sa carte, ou n'importe qui tant que total_number_of_token ==0
@@ -186,8 +167,8 @@ blueprint! {
 
             //self.internal_authority.authorize(|| voter_card.burn());
             self.internal_authority
-                .authorize(|| resource_manager.update_non_fungible_data(&id, new_voter_card));
-            self.locker.take(voter_card.total_number_of_token)
+                .authorize(|| resource_manager.update_non_fungible_data(&id, voter_card));
+            self.locker.take(total_number_of_token)
         }
 
         /// Checks that a given [`Proof`] corresponds to a position and returns the associated
