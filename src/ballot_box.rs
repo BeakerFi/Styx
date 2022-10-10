@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use scrypto::dec;
 use scrypto::math::Decimal;
-use scrypto::prelude::ResourceAddress;
 use crate::proposals::{Proposal, ProposalStatus, Vote, Change};
 use crate::voter_card::VoterCard;
 
@@ -252,9 +251,6 @@ impl BallotBox
 
 }
 
-//     / \
-//    / | \  TO MAKE THE TESTS WORK, MAKE CHANGES IN THE FUNCTION current_epoch OF voter_card.rs AND
-//   /  •  \ ballot_box.rs
 #[cfg(test)]
 mod tests
 {

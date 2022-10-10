@@ -126,7 +126,7 @@ impl VoterCard
         {
             self.total_number_of_token -= amount;
             let mut amount_loop = amount;
-            while amount_loop > dec!("0")
+            while amount_loop > dec!(0)
             {
                 let (tokens,time) = self.locked_tokens.pop().unwrap();
                 if tokens > amount
@@ -142,7 +142,7 @@ impl VoterCard
     pub fn retrieve_all_tokens(&mut self) -> Decimal
     {
         let total_number_of_token = self.total_number_of_token;
-        self.total_number_of_token = dec!("0");
+        self.total_number_of_token = dec!(0);
         self.locked_tokens = vec![];
         total_number_of_token
     }
@@ -215,7 +215,7 @@ mod tests
 
         let mut voter_card = VoterCard::new(0);
         voter_card.add_tokens(dec!(45), test_runner.get_current_epoch());
-        assert_eq!(voter_card.locked_tokens, vec![(dec!("45"), test_runner.get_current_epoch())]);
+        assert_eq!(voter_card.locked_tokens, vec![(dec!(45), test_runner.get_current_epoch())]);
         assert!(voter_card.can_delegate_to(voter_card.voter_id));
     }
 
