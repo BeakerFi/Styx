@@ -5,8 +5,11 @@ use crate::voter_card::VoterCard;
 
 blueprint! {
     struct Styx {
-        // Define what resources and data will be managed by Hello components
+
+        // The emission vault is the vault in where all token will first be minted until there owner withdraw them
         emission_vault: Vault,
+
+        // The internal_authority is used to mint and burn tokens but also to 
         internal_authority : Vault,
         locker : Vault,
         styx_address: ResourceAddress,
@@ -19,32 +22,30 @@ blueprint! {
     }
 
     impl Styx {
-        // Implement the functions and methods which will manage those resources and data
+        
 
-        // This is a function, and can be called directly on the blueprint once deployed
-        pub fn instantiate() -> (ComponentAddress,Bucket) {
+        // Instantiate given the initial_supply return the component adress of the DAO, the external admin badge that allow to mint new tokens and        
+        pub fn instantiate(initial_supply: Decimal) -> (ComponentAddress, Bucket, Bucket) {
 
+
+            // If the DAO is not instancied with an admin badge, a default one is created to the instantiation and then returned to the instantiator
             let default_admin_badge = ResourceBuilder::new_fungible()
             .divisibility(DIVISIBILITY_NONE)
             .metadata("name", "External Admin Badge")
             .burnable(rule!(allow_all), LOCKED)
             .initial_supply(dec!("1"));
-
-            //let default_rule = rule!(require(default_admin_badge.resource_address()));
-            Self::instantiate_custom(default_admin_badge)
+ 
+            Self::instantiate_custom(default_admin_badge, initial_supply)
         }
 
 
-        pub fn instantiate_custom(admin_badge : Bucket) -> (ComponentAddress, Bucket) {
+        // A contract can instantiate a DAO with it's own internal admin badge which give the power to mint new styx
+        pub fn instantiate_custom(admin_badge : Bucket, initial_supply: Decimal) -> (ComponentAddress, Bucket, Bucket) {
 
-                    // Implement the functions and methods which will manage those resources and data
-
-        // This is a function, and can be called directly on the blueprint once deployed
-
-            // Next we will create a badge we'll hang on to for minting & transfer authority
+            
             let internal_admin: Bucket = ResourceBuilder::new_fungible()
                 .divisibility(DIVISIBILITY_NONE)
-                .metadata("name", "RegulatedToken internal authority badge")
+                .metadata("name", "Internal Admin Badge")
                 .burnable(rule!(allow_all), LOCKED)
                 .initial_supply(dec!("1"));
 
@@ -58,6 +59,7 @@ blueprint! {
                     access_rule.clone(),
                     MUTABLE(access_rule.clone())
                 )
+                // Both the internal or external admin can mint StyxToken
                 .mintable(
                     rule!(require(internal_admin.resource_address()) || require(admin_badge.resource_address()) ),
                     MUTABLE(access_rule.clone())
@@ -66,24 +68,19 @@ blueprint! {
 
             let styx_address: ResourceAddress = my_bucket.resource_address();
 
-            let address = ResourceBuilder::new_non_fungible()
-                .metadata(
-                    "name",
-                    "Promise tokenx for BasicFlashLoan - must be returned to be burned!",
-                )
-                .mintable(rule!(require(internal_admin.resource_address())), LOCKED)
-                .burnable(rule!(require(internal_admin.resource_address())), LOCKED)
-                .restrict_withdraw(rule!(require(internal_admin.resource_address())), MUTABLE(rule!(require(internal_admin.resource_address()))))
-                .updateable_non_fungible_data(rule!(require(internal_admin.resource_address())), LOCKED)
+            let voter_card_address = ResourceBuilder::new_non_fungible()
+                .metadata("name","VoterCard")
+                .mintable(access_rule.clone(), LOCKED)
+                .burnable(access_rule.clone(), LOCKED)
+                .restrict_withdraw(access_rule.clone(), MUTABLE(access_rule.clone()))
+                .updateable_non_fungible_data(access_rule.clone(), LOCKED)
                 .no_initial_supply();
 
 
-
-            // Instantiate a Hello component, populating its vault with our supply of 1000 HelloToken
             let dao = Self {
                 emission_vault: Vault::with_bucket(my_bucket),
                 internal_authority: Vault::with_bucket(internal_admin),
-                voter_card_address : address,
+                voter_card_address : voter_card_address,
                 locker : Vault::new(styx_address),
                 styx_address,
                 ballot_box: BallotBox::new(),
@@ -98,14 +95,14 @@ blueprint! {
         }
 
 
-        // This is a method, because it needs a reference to self.  Methods can only be called on components
+        // Using for test only 
         pub fn free_token(&mut self) -> Bucket {
             info!("My balance is: {} HelloToken. Now giving away a token!", self.emission_vault.amount());
-            // If the semi-colon is omitted on the last line, the last value seen is automatically returned
-            // In this case, a bucket containing 1 HelloToken is returned
             self.emission_vault.take(1)
         }
 
+
+        // Mint a new voter card 
         pub fn mint_voter_card(&mut self) -> Bucket {
 
             let voter_card_bucket = self.internal_authority.authorize(|| {
@@ -182,10 +179,6 @@ blueprint! {
             let mut voter_card : VoterCard = self.get_voter_card_data_from_proof(&validated_proof);
 
             let total_number_of_token = voter_card.retrieve_all_tokens();
-
-            // Je pense mettre vec![] vide à la place (je ne peux pas encore), ou burn en fait
-            // Ou alors pouvoir autoriser n'importe qui a burn sa carte, ou n'importe qui tant que total_number_of_token ==0
-            // Ou faire fct burn_card qui unlock_all puis burn
 
             self.change_data(&validated_proof, voter_card);
             self.locker.take(total_number_of_token)
