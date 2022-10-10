@@ -15,7 +15,7 @@ blueprint! {
         new_voter_card_id: u64,
         ballot_box: BallotBox,
         assets_under_management: HashMap<ResourceAddress, Vault>,
-        claimable_tokens: HashMap<u64, Vec<(ResourceAddress, Decimal)>>
+        claimable_tokens: HashMap<u64, HashMap<ResourceAddress, Decimal>>
     }
 
     impl Styx {
@@ -161,8 +161,23 @@ blueprint! {
                 {
                     match self.claimable_tokens.get_mut(&to)
                     {
-                        None => { self.claimable_tokens.insert(to, vec![(address, amount)]); },
-                        Some(vec) => {vec.push((address, amount));}
+                        None =>
+                            {
+                                let mut new_hashmap: HashMap<ResourceAddress, Decimal> = HashMap::new();
+                                new_hashmap.insert(address, amount);
+                                self.claimable_tokens.insert(to, new_hashmap);
+                            },
+                        Some(hashmap) =>
+                            {
+                                match hashmap.get_mut(&address)
+                                {
+                                    None => { hashmap.insert(address, amount); }
+                                    Some(tokens) =>
+                                        {
+                                            *tokens = *tokens + amount;
+                                        }
+                                }
+                            }
                     }
                 }
             }
@@ -203,7 +218,7 @@ blueprint! {
             }
         }
 
-        pub fn amount_owned(&mut self, asset_address: ResourceAddress) -> Decimal
+        pub fn amount_owned(&self, asset_address: ResourceAddress) -> Decimal
         {
             match self.assets_under_management.get(&asset_address)
             {
@@ -211,6 +226,61 @@ blueprint! {
                 Some(vault) => vault.amount()
             }
         }
+
+        pub fn claim_tokens(&mut self, voter_card_proof: Proof) -> Vec<Bucket>
+        {
+            let validated_proof = self.check_proof(voter_card_proof);
+            let voter_card = self.get_voter_card_data_from_proof(&validated_proof);
+
+            let mut buckets: Vec<Bucket> = vec![];
+
+            match self.claimable_tokens.get_mut(&voter_card.voter_id)
+            {
+                None => {}
+                Some(hashmap) =>
+                    {
+
+                        let mut resource_to_remove = vec![];
+
+                        for (resource, amount) in hashmap.iter_mut()
+                        {
+                            match self.assets_under_management.get_mut(&resource)
+                            {
+                                None => {}
+                                Some(vault) =>
+                                    {
+                                        let mut new_bucket = Bucket::new(*resource);
+                                        let owned = vault.amount();
+                                        let amount_to_take = owned.max(*amount);
+
+                                        new_bucket.put(vault.take(amount_to_take));
+
+                                        if amount_to_take == owned
+                                        {
+                                            self.assets_under_management.remove(&resource);
+                                        }
+
+                                        *amount = *amount - amount_to_take;
+                                        buckets.push(new_bucket);
+                                        if amount.is_zero()
+                                        {
+                                            resource_to_remove.push(*resource);
+                                        }
+                                    }
+                            }
+                        }
+
+                        for resource in resource_to_remove.into_iter()
+                        {
+                            hashmap.remove(&resource);
+                        }
+
+                    }
+            }
+
+            buckets
+        }
+
 
         fn change_data(&self, valid_proof: &ValidatedProof, new_voter_card: VoterCard)
         {
@@ -245,6 +315,5 @@ blueprint! {
             let id = validated_proof.non_fungible::<VoterCard>().id();
             resource_manager.get_non_fungible_data::<VoterCard>(&id)
         }
-
     }
 }
