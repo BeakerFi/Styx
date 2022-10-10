@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 use scrypto::dec;
-use scrypto::prelude::{Decimal};
+use scrypto::prelude::{Decimal, ResourceAddress};
 
 /// A voter can not only vote For or Against a Proposal but also Blank.
 /// Blank votes are not taken into account when counting votes but we could add a reward for voting
@@ -28,13 +28,21 @@ pub enum ProposalStatus
 }
 
 /// Proposed change to parameters of votes. If a proposal is accepted and changes are made to the
-/// voting system, these changes are taken into accounts for new proposals.
+/// DAO, these changes are taken into accounts for new proposals.
 #[derive(sbor::TypeId, sbor::Encode, sbor::Decode, sbor::Describe, Clone)]
-pub enum VotingParametersChange
+pub enum Change
 {
-    SupportPeriod(u64),
-    VotePeriod(u64),
-    SuggestionApprovalThreshold(Decimal),
+    /// Changes the supporting period of proposals
+    ChangeSupportPeriod(u64),
+
+    /// Changes the vote period of proposals
+    ChangeVotePeriod(u64),
+
+    /// Changes the suggestion approval threshold of proposals
+    ChangeSuggestionApprovalThreshold(Decimal),
+
+    /// Allows claiming of a certain amount of resource by a voter id
+    AllowSpending(ResourceAddress, Decimal, u64)
 }
 
 /// Proposal that can be made to the DAO.
@@ -51,7 +59,7 @@ pub struct Proposal
     pub description: String,
 
     /// Change to be enacted
-    pub change: VotingParametersChange,
+    pub change: Change,
 
     /// Current status of the proposal
     pub status: ProposalStatus,
@@ -195,7 +203,7 @@ impl ProposalStatus
 mod tests
 {
     use scrypto::dec;
-    use crate::proposals::{Proposal, ProposalStatus, VotingParametersChange};
+    use crate::proposals::{Proposal, ProposalStatus, Change};
 
     #[test]
     fn test_add_delegation()
@@ -204,7 +212,7 @@ mod tests
         {
             id: 0,
             description: "".to_string(),
-            change: VotingParametersChange::VotePeriod(0),
+            change: Change::ChangeVotePeriod(0),
             status: ProposalStatus::SuggestionPhase,
             supporting_votes: Default::default(),
             voted_for: Default::default(),
@@ -228,7 +236,7 @@ mod tests
         {
             id: 0,
             description: "".to_string(),
-            change: VotingParametersChange::VotePeriod(0),
+            change: Change::ChangeVotePeriod(0),
             status: ProposalStatus::SuggestionPhase,
             supporting_votes: Default::default(),
             voted_for: Default::default(),
@@ -254,7 +262,7 @@ mod tests
         {
             id: 0,
             description: "".to_string(),
-            change: VotingParametersChange::VotePeriod(0),
+            change: Change::ChangeVotePeriod(0),
             status: ProposalStatus::SuggestionPhase,
             supporting_votes: Default::default(),
             voted_for: Default::default(),
@@ -280,7 +288,7 @@ mod tests
         {
             id: 0,
             description: "".to_string(),
-            change: VotingParametersChange::VotePeriod(0),
+            change: Change::ChangeVotePeriod(0),
             status: ProposalStatus::SuggestionPhase,
             supporting_votes: Default::default(),
             voted_for: Default::default(),

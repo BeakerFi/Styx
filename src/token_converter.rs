@@ -1,6 +1,6 @@
 use scrypto::prelude::*;
 use crate::ballot_box::BallotBox;
-use crate::proposals::{Vote, VotingParametersChange};
+use crate::proposals::{Vote, Change};
 use crate::voter_card::VoterCard;
 
 blueprint! {
@@ -14,6 +14,8 @@ blueprint! {
         emitted_tokens: Decimal,
         new_voter_card_id: u64,
         ballot_box: BallotBox,
+        assets_under_management: HashMap<ResourceAddress, Vault>,
+        claimable_tokens: HashMap<u64, Vec<(ResourceAddress, Decimal)>>
     }
 
     impl Styx {
@@ -67,7 +69,9 @@ blueprint! {
                 styx_address,
                 ballot_box: BallotBox::new(),
                 new_voter_card_id: 0,
-                emitted_tokens: Decimal::zero()
+                emitted_tokens: Decimal::zero(),
+                assets_under_management: HashMap::new(),
+                claimable_tokens: HashMap::new()
             }
             .instantiate()
             .globalize()
@@ -134,7 +138,7 @@ blueprint! {
             self.locker.take(amount)
         }
 
-        pub fn make_proposal(&mut self, description: String, suggested_change: VotingParametersChange)
+        pub fn make_proposal(&mut self, description: String, suggested_change: Change)
         {
             self.ballot_box.make_proposal(description, suggested_change);
         }
@@ -150,7 +154,18 @@ blueprint! {
 
         pub fn advance_with_proposal(&mut self, proposal_id: usize)
         {
-            self.ballot_box.advance_with_proposal(proposal_id, self.emitted_tokens);
+            match self.ballot_box.advance_with_proposal(proposal_id, self.emitted_tokens)
+            {
+                None => {}
+                Some((address, amount, to)) =>
+                {
+                    match self.claimable_tokens.get_mut(&to)
+                    {
+                        None => { self.claimable_tokens.insert(to, vec![(address, amount)]); },
+                        Some(vec) => {vec.push((address, amount));}
+                    }
+                }
+            }
         }
 
         pub fn delegate_for_proposal(&mut self, proposal_id: usize, delegate_to: u64, voter_card_proof: Proof)
@@ -171,6 +186,31 @@ blueprint! {
             self.change_data(&validated_id, voter_card);
         }
 
+        pub fn gift_asset(&mut self, mut asset: Bucket)
+        {
+            match self.assets_under_management.get_mut(&asset.resource_address())
+            {
+                None =>
+                    {
+                        let mut  vault= Vault::new(asset.resource_address());
+                        vault.put(asset.take(asset.amount()));
+                        self.assets_under_management.insert(asset.resource_address(), vault);
+                    }
+                Some(vault) =>
+                    {
+                        vault.put(asset.take(asset.amount()));
+                    }
+            }
+        }
+
+        pub fn amount_owned(&mut self, asset_address: ResourceAddress) -> Decimal
+        {
+            match self.assets_under_management.get(&asset_address)
+            {
+                None => Decimal::zero(),
+                Some(vault) => vault.amount()
+            }
+        }
 
         fn change_data(&self, valid_proof: &ValidatedProof, new_voter_card: VoterCard)
         {
