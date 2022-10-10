@@ -22,7 +22,24 @@ blueprint! {
         // Implement the functions and methods which will manage those resources and data
 
         // This is a function, and can be called directly on the blueprint once deployed
-        pub fn instantiate() -> ComponentAddress {
+        pub fn instantiate() -> (ComponentAddress,Bucket) {
+
+            let default_admin_badge = ResourceBuilder::new_fungible()
+            .divisibility(DIVISIBILITY_NONE)
+            .metadata("name", "External Admin Badge")
+            .burnable(rule!(allow_all), LOCKED)
+            .initial_supply(dec!("1"));
+
+            //let default_rule = rule!(require(default_admin_badge.resource_address()));
+            Self::instantiate_custom(default_admin_badge)
+        }
+
+
+        pub fn instantiate_custom(admin_badge : Bucket) -> (ComponentAddress, Bucket) {
+
+                    // Implement the functions and methods which will manage those resources and data
+
+        // This is a function, and can be called directly on the blueprint once deployed
 
             // Next we will create a badge we'll hang on to for minting & transfer authority
             let internal_admin: Bucket = ResourceBuilder::new_fungible()
@@ -42,7 +59,7 @@ blueprint! {
                     MUTABLE(access_rule.clone())
                 )
                 .mintable(
-                    access_rule.clone(),
+                    rule!(require(internal_admin.resource_address()) || require(admin_badge.resource_address()) ),
                     MUTABLE(access_rule.clone())
                 )
                 .initial_supply(dec!("100"));
@@ -60,8 +77,10 @@ blueprint! {
                 .updateable_non_fungible_data(rule!(require(internal_admin.resource_address())), LOCKED)
                 .no_initial_supply();
 
+
+
             // Instantiate a Hello component, populating its vault with our supply of 1000 HelloToken
-            Self {
+            let dao = Self {
                 emission_vault: Vault::with_bucket(my_bucket),
                 internal_authority: Vault::with_bucket(internal_admin),
                 voter_card_address : address,
@@ -73,8 +92,9 @@ blueprint! {
                 assets_under_management: HashMap::new(),
                 claimable_tokens: HashMap::new()
             }
-            .instantiate()
-            .globalize()
+            .instantiate();
+
+            return (dao.globalize(),admin_badge)
         }
 
 

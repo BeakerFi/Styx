@@ -122,11 +122,11 @@ impl VoterCard
 
         if amount == self.total_number_of_token
         {
-            self.locked_tokens = vec![];
-            self.total_number_of_token = dec!(0);
+            self.retrieve_all_tokens();
         }
         else
         {
+            self.total_number_of_token -= amount;
             let mut amount_loop = amount;
             while amount_loop > dec!("0")
             {
@@ -134,10 +134,8 @@ impl VoterCard
                 if tokens > amount
                 {
                     self.locked_tokens.push( (tokens- amount_loop,time));
-                    self.total_number_of_token = self.total_number_of_token + amount_loop;
                 }
 
-                self.total_number_of_token = self.total_number_of_token - tokens;
                 amount_loop = amount_loop - tokens;
             }
         }
