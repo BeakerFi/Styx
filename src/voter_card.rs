@@ -45,12 +45,14 @@ impl VoterCard
 
     pub fn remove_amount(&mut self, amount : Decimal){
 
+        let mut amount = amount; // Pour faire une copie mutable de amount, j'ai peur que autrement ça change amount ailleur
+
         if self.total_number_of_token == amount {
             self.remove_all();
         } 
         else {
 
-            while (amount > dec!("0")) {
+            while amount > dec!("0") {
                 let tokens = self.locked_tokens.pop().unwrap();
                 if tokens > amount {
                     self.locked_tokens.push(tokens - amount)
@@ -58,7 +60,7 @@ impl VoterCard
                 } else {
                     self.lock_epoch.pop();
                 }
-                amount = amount - tokens;
+                amount -= tokens;
             }
 
         }
@@ -136,8 +138,7 @@ impl VoterCard
     }
 
     fn init_fusion(&mut self){
-        let total_amount = self.locked_tokens.iter().sum();
-        self.locked_tokens = vec![total_amount];
+        self.locked_tokens = vec![self.total_number_of_token];
         self.lock_epoch = vec![Self::current_epoch()];
     }
 

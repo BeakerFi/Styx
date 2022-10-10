@@ -72,7 +72,7 @@ impl BallotBox
         {
             panic!("You already supported the proposition");
         }
-        let voting_power = Self::voting_power(voter_card);
+        let voting_power = Self::total_voting_power(voter_card);
         proposal.supporting_votes = proposal.supporting_votes + voting_power;
     }
 
@@ -141,7 +141,7 @@ impl BallotBox
         }
         else
         {
-            let nb_votes = Self::voting_power(voter_card);
+            let nb_votes = Self::total_voting_power(voter_card);
             match proposal.delegated_votes.get_mut(&delegate_to)
             {
                 None => { proposal.delegated_votes.insert(delegate_to.clone(), nb_votes ); }
@@ -168,7 +168,7 @@ impl BallotBox
 
         if can_vote
         {
-            total_voting_power = Self::voting_power(voter_card);
+            total_voting_power = Self::total_voting_power(voter_card);
         }
 
         match proposal.delegated_votes.get_mut(&voter_card.voter_id)
@@ -189,15 +189,25 @@ impl BallotBox
         }
     }
 
-    fn voting_power(voter_card: &VoterCard) -> Decimal
+    
+    fn total_voting_power(voter_card: &VoterCard) -> Decimal
     {
-        if Self::current_epoch() == voter_card.lock_epoch
+        let mut total_power = dec!("0");
+        for i in 0..voter_card.locked_tokens.len() {
+            let epoch = voter_card.lock_epoch.get(i).unwrap();
+            let locked_tokens = voter_card.locked_tokens.get(i).unwrap();
+            total_power += Self::voting_power(*epoch,*locked_tokens);
+        }
+        total_power
+    }
+
+    fn voting_power(lock_epoch : u64, locked_tokens : Decimal ) -> Decimal {
+        if Self::current_epoch() == lock_epoch
         {
             return Decimal::zero();
         }
         // In our tests, time can get negative so we transform in Decimal before subtracting
-        let time = Decimal::from(Self::current_epoch()) - Decimal::from(voter_card.lock_epoch);
-        let tokens = voter_card.locked_tokens;
+        let time = Decimal::from(Self::current_epoch()) - Decimal::from(lock_epoch);
         let exp = exp(- dec!(2016) / time );
         let time_multiplicator =  ( exp - 1 )/ (exp + 1)  + 1;
         if time_multiplicator == Decimal::zero()
@@ -206,10 +216,9 @@ impl BallotBox
         }
         else
         {
-            let total = cbrt(ln(time_multiplicator*tokens));
+            let total = cbrt(ln(time_multiplicator*locked_tokens));
             total.max(Decimal::zero())
-        }
-
+        }        
     }
 
     fn execute_proposal(&mut self, change_to_do: &VotingParametersChange)
@@ -275,7 +284,7 @@ mod tests
 
         let proposal = ballot_box.proposals.get(0).unwrap();
 
-        assert_eq!(proposal.supporting_votes, BallotBox::voting_power(&voting_card));
+        assert_eq!(proposal.supporting_votes, BallotBox::total_voting_power(&voting_card));
     }
 
     #[test]
