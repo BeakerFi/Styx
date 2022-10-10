@@ -160,16 +160,16 @@ impl VoterCard
         {
             // In our tests, time can get negative so we transform in Decimal before subtracting
             let time = current_epoch - *time_tmp;
-            total = total + Self::sub_voting_function(time, *tokens, current_epoch);
+            total = total + Self::sub_voting_function(time, *tokens);
         }
 
         total
     }
 
-    fn sub_voting_function(time: u64, tokens: Decimal, current_epoch: u64) -> Decimal
+    fn sub_voting_function(time: u64, tokens: Decimal) -> Decimal
     {
 
-        if current_epoch == time
+        if time==0
         {
             return Decimal::zero();
         }
@@ -183,14 +183,18 @@ impl VoterCard
         }
         else
         {
-            let total = cbrt(ln(time_multiplicator*tokens));
+            let corrected_tokens = time_multiplicator*tokens + 1; // Add 1 to make sure that it is > 0
+            let total = cbrt(ln(corrected_tokens));
             total.max(Decimal::zero())
         }
     }
 
     fn merge(&mut self, current_epoch: u64)
     {
-        self.locked_tokens = vec![(self.total_number_of_token, current_epoch)];
+        if !self.locked_tokens.is_empty()
+        {
+            self.locked_tokens = vec![(self.total_number_of_token, current_epoch)];
+        }
     }
 }
 
@@ -198,11 +202,7 @@ impl VoterCard
 mod tests
 {
     use radix_engine::ledger::TypedInMemorySubstateStore;
-    use sbor::Type::{HashMap, String};
-    use scrypto::core::NetworkDefinition;
-    use scrypto::crypto::PublicKey;
     use scrypto::dec;
-    use scrypto::prelude::{DIVISIBILITY_NONE, NonFungibleId, ResourceBuilder};
     use scrypto_unit::TestRunner;
     use transaction::builder::ManifestBuilder;
     use crate::proposals::ProposalStatus;

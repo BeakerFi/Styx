@@ -204,7 +204,6 @@ impl BallotBox
                     *deleg_votes = dec!(0);
                 }
         }
-
         match vote
         {
             Vote::For => { proposal.voted_for = proposal.voted_for + total_voting_power; }
@@ -307,7 +306,7 @@ mod tests
         );
 
         let mut voting_card = VoterCard::new(0);
-        voting_card.add_tokens(dec!(1234), test_runner.get_current_epoch());
+        voting_card.add_tokens(dec!(1000), test_runner.get_current_epoch());
         ballot_box.support_proposal(0, &mut voting_card, test_runner.get_current_epoch());
 
         let proposal = ballot_box.proposals.get(0).unwrap();
@@ -319,9 +318,6 @@ mod tests
     #[should_panic]
     fn test_support_proposal_fail()
     {
-        let mut store = TypedInMemorySubstateStore::with_bootstrap();
-        let mut test_runner = TestRunner::new(true, &mut store);
-
         let mut store = TypedInMemorySubstateStore::with_bootstrap();
         let mut test_runner = TestRunner::new(true, &mut store);
 
@@ -357,15 +353,17 @@ mod tests
             test_runner.get_current_epoch()
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
-
-        proposal.epoch_expiration = 0;
         proposal.supporting_votes = dec!(100);
+
+        let current = test_runner.get_current_epoch();
+        let new_epoch = current + ballot_box.support_period +1;
+        test_runner.set_current_epoch(new_epoch);
 
         ballot_box.advance_with_proposal(0, dec!(100), test_runner.get_current_epoch());
 
         let updated_proposal = ballot_box.proposals.get_mut(0).unwrap();
         assert!(updated_proposal.status.is_voting_phase());
-        assert_eq!(updated_proposal.epoch_expiration, 168);
+        assert_eq!(updated_proposal.epoch_expiration, new_epoch + ballot_box.vote_period);
     }
 
     #[test]
@@ -400,9 +398,11 @@ mod tests
             test_runner.get_current_epoch()
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
-
-        proposal.epoch_expiration = 0;
         proposal.supporting_votes = dec!(100);
+
+        let current = test_runner.get_current_epoch();
+        let new_epoch = current + ballot_box.support_period +1;
+        test_runner.set_current_epoch(new_epoch);
 
         ballot_box.advance_with_proposal(0, dec!(100000), test_runner.get_current_epoch());
 
@@ -424,10 +424,12 @@ mod tests
             test_runner.get_current_epoch()
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
-
-        proposal.epoch_expiration = 0;
         proposal.status = ProposalStatus::VotingPhase;
         proposal.voted_for = dec!(1);
+
+        let current = test_runner.get_current_epoch();
+        let new_epoch = current + ballot_box.vote_period +1;
+        test_runner.set_current_epoch(new_epoch);
 
         ballot_box.advance_with_proposal(0, dec!(10), test_runner.get_current_epoch());
 
@@ -449,10 +451,12 @@ mod tests
             test_runner.get_current_epoch()
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
-
-        proposal.epoch_expiration = 0;
         proposal.status = ProposalStatus::VotingPhase;
         proposal.voted_against = dec!(1);
+
+        let current = test_runner.get_current_epoch();
+        let new_epoch = current + ballot_box.vote_period +1;
+        test_runner.set_current_epoch(new_epoch);
 
         ballot_box.advance_with_proposal(0, dec!(10), test_runner.get_current_epoch());
 
@@ -475,8 +479,9 @@ mod tests
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
+
         let mut voting_card = VoterCard::new(0);
-        voting_card.add_tokens(dec!(1234), test_runner.get_current_epoch());
+        voting_card.add_tokens(dec!(1000), test_runner.get_current_epoch());
         voting_card.add_delegatee(1, test_runner.get_current_epoch());
 
         ballot_box.delegate_for_proposal(0, 1, &mut voting_card, test_runner.get_current_epoch());
@@ -521,7 +526,7 @@ mod tests
             test_runner.get_current_epoch()
         );
         let mut voting_card = VoterCard::new(0);
-        voting_card.add_tokens(dec!(1234), test_runner.get_current_epoch());
+        voting_card.add_tokens(dec!(1000), test_runner.get_current_epoch());
         voting_card.add_delegatee(1, test_runner.get_current_epoch());
 
         ballot_box.delegate_for_proposal(0, 1, &mut voting_card, test_runner.get_current_epoch());
@@ -632,7 +637,6 @@ mod tests
         ballot_box.vote_for_proposal(0, &mut voting_card, Vote::For, test_runner.get_current_epoch());
 
         let updated_proposal = ballot_box.proposals.get(0).unwrap();
-
         assert!(updated_proposal.voted_for > dec!("1.74"));
     }
 
@@ -644,6 +648,18 @@ mod tests
 
         let mut ballot_box = BallotBox::new();
         let description = String::from("Test proposal");
+
+
+        let mut voting_card_1 = VoterCard::new(0);
+        voting_card_1.add_delegatee(1, test_runner.get_current_epoch());
+        voting_card_1.add_tokens(dec!(1), test_runner.get_current_epoch());
+
+        let mut voting_card_2 = VoterCard::new(1);
+        voting_card_2.add_tokens(dec!(1), test_runner.get_current_epoch());
+
+        let current = test_runner.get_current_epoch();
+        test_runner.set_current_epoch(current + 2016);
+
         ballot_box.make_proposal(
             description,
             vec![Change::ChangeVotePeriod(0)],
@@ -652,20 +668,12 @@ mod tests
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
 
-        let mut voting_card_1 = VoterCard::new(0);
-        voting_card_1.add_delegatee(1, test_runner.get_current_epoch());
-        voting_card_1.add_tokens(dec!(1), 2016);
-
-        let mut voting_card_2 = VoterCard::new(1);
-        voting_card_2.add_tokens(dec!(1), 2016);
-
         ballot_box.delegate_for_proposal(0, 1, &mut voting_card_1, test_runner.get_current_epoch());
-
+        let updated_proposal = ballot_box.proposals.get(0).unwrap();
         ballot_box.vote_for_proposal(0, &mut voting_card_2, Vote::For, test_runner.get_current_epoch());
 
         let updated_proposal = ballot_box.proposals.get(0).unwrap();
-
-        assert!(updated_proposal.voted_for > dec!(1));
+        assert!(updated_proposal.voted_for > dec!("1.5"));
     }
 
     #[test]
@@ -676,6 +684,17 @@ mod tests
 
         let mut ballot_box = BallotBox::new();
         let description = String::from("Test proposal");
+
+
+        let mut voting_card_1 = VoterCard::new(0);
+        voting_card_1.add_delegatee(1, test_runner.get_current_epoch());
+        voting_card_1.add_tokens(dec!(1), test_runner.get_current_epoch());
+
+        let mut voting_card_2 = VoterCard::new(1);
+        voting_card_2.add_tokens(dec!(1), test_runner.get_current_epoch());
+
+        let current = test_runner.get_current_epoch();
+        test_runner.set_current_epoch(current + 2016);
         ballot_box.make_proposal(
             description,
             vec![Change::ChangeVotePeriod(0)],
@@ -684,20 +703,12 @@ mod tests
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
 
-        let mut voting_card_1 = VoterCard::new(0);
-        voting_card_1.add_delegatee(1, test_runner.get_current_epoch());
-        voting_card_1.add_tokens(dec!(1), 2016);
-
-        let mut voting_card_2 = VoterCard::new(1);
-        voting_card_2.add_tokens(dec!(1), test_runner.get_current_epoch());
-        voting_card_2.try_vote_for(0, &ProposalStatus::VotingPhase);
-
         ballot_box.delegate_for_proposal(0, 1, &mut voting_card_1, test_runner.get_current_epoch());
 
         ballot_box.vote_for_proposal(0, &mut voting_card_2, Vote::For, test_runner.get_current_epoch());
 
         let updated_proposal = ballot_box.proposals.get(0).unwrap();
-        assert!(updated_proposal.voted_for > dec!(0));
+        assert!(updated_proposal.voted_for > dec!("0.75"));
     }
 
     #[test]
