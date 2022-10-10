@@ -8,7 +8,7 @@ blueprint! {
         // Define what resources and data will be managed by Hello components
         emission_vault: Vault,
         internal_authority : Vault,
-        stake : Vault,
+        locker : Vault,
         styx_address: ResourceAddress,
         voter_card_address: ResourceAddress,
         emitted_tokens: Decimal,
@@ -52,9 +52,10 @@ blueprint! {
                     "name",
                     "Promise tokenx for BasicFlashLoan - must be returned to be burned!",
                 )
-                .mintable(rule!(require(internal_admin.resource_address())), LOCKED) // 1
-                .burnable(rule!(require(internal_admin.resource_address())), LOCKED) // 1
-                .restrict_deposit(rule!(require(internal_admin.resource_address())), MUTABLE(rule!(require(internal_admin.resource_address())))) // 1
+                .mintable(rule!(require(internal_admin.resource_address())), LOCKED)
+                .burnable(rule!(require(internal_admin.resource_address())), LOCKED)
+                .restrict_withdraw(rule!(require(internal_admin.resource_address())), MUTABLE(rule!(require(internal_admin.resource_address()))))
+                .updateable_non_fungible_data(rule!(require(internal_admin.resource_address())), LOCKED)
                 .no_initial_supply();
 
             // Instantiate a Hello component, populating its vault with our supply of 1000 HelloToken
@@ -62,7 +63,7 @@ blueprint! {
                 emission_vault: Vault::with_bucket(my_bucket),
                 internal_authority: Vault::with_bucket(internal_admin),
                 voter_card_address : address,
-                stake : Vault::new(styx_address),
+                locker : Vault::new(styx_address),
                 styx_address,
                 ballot_box: BallotBox::new(),
                 new_voter_card_id: 0,
@@ -81,8 +82,8 @@ blueprint! {
             self.emission_vault.take(1)
         }
 
-        pub fn lock(&mut self, deposit : Bucket) -> Bucket {
-            assert_eq!(deposit.resource_address(), self.stake.resource_address());
+        pub fn lock(&mut self, voter_card : Bucket, deposit : Bucket) -> Bucket {
+            assert_eq!(deposit.resource_address(), self.styx_address);
 
             info!("You are going to lock : {}", deposit.amount());
             let voter_card_bucket = self.internal_authority.authorize(|| {
@@ -91,7 +92,7 @@ blueprint! {
                     VoterCard::new(self.new_voter_card_id, Some(deposit.amount()))
                 )
             });
-            self.stake.put(deposit);
+            self.locker.put(deposit);
             self.new_voter_card_id+=1;
 
             voter_card_bucket
@@ -101,19 +102,55 @@ blueprint! {
         {
             let validated_proof = self.check_proof(proof);
 
-            // avoir accès à validated
-            let voter_card : VoterCard = self.get_voter_card_data(&validated_proof);
+            let id = validated_proof.non_fungible::<VoterCard>().id();
 
-            assert!(voter_card.nb_of_token >= amount);
+            // avoir accès à validated
+            let mut voter_card : VoterCard = self.get_voter_card_data_from_proof(&validated_proof);
+
+            assert!(voter_card.total_number_of_token >= amount);
+
+            if (voter_card.total_number_of_token == amount) {
+                return self.unlock_all(proof)
+            };
+
+            while (amount > dec!("0")) {
+                let tokens = voter_card.locked_tokens.pop().unwrap();
+                if tokens > amount {
+                    voter_card.locked_tokens.push(tokens- amount)
+                } else {
+                    voter_card.lock_epoch.pop();
+                }
+                amount = amount - tokens;
+            }
+
+            //self.internal_authority.authorize(|| voter_card.burn());
+            self.internal_authority
+                .authorize(|| resource_manager.update_non_fungible_data(&id, voter_card));
+            self.locker.take(amount)
+        }
+
+        pub fn unlock_all(&mut self, proof : Proof) -> Bucket {
+            let resource_manager : &mut ResourceManager = borrow_resource_manager!(self.voter_card_address);
+
+            let validated_proof = self.check_proof(proof);
+
+            let id = validated_proof.non_fungible::<VoterCard>().id();
+
+            // avoir accès à validated
+            let voter_card : VoterCard = self.get_voter_card_data_from_proof(&validated_proof);
 
             let new_voter_card = VoterCard{
                 voter_id: voter_card.voter_id,
-                nb_of_token : voter_card.nb_of_token - amount,
-                lock_epoch: voter_card.lock_epoch,
+                total_number_of_token : dec!("0"),
+                locked_tokens : vec![dec!("0")],
+                lock_epoch: vec![Runtime::current_epoch()],
                 votes: vec![],
                 delegatees: vec![]
             };
 
+            // Je pense mettre vec![] vide à la place (je ne peux pas encore), ou burn en fait
+            // Ou alors pouvoir autoriser n'importe qui a burn sa carte, ou n'importe qui tant que total_number_of_token ==0
+            // Ou faire fct burn_card qui unlock_all puis burn
 
             self.change_data(&validated_proof, new_voter_card);
             self.stake.take(amount)
@@ -163,7 +200,6 @@ blueprint! {
             let id = valid_proof.non_fungible::<VoterCard>().id();
             self.internal_authority
                 .authorize(|| resource_manager.update_non_fungible_data(&id, new_voter_card));
-
         }
 
 
@@ -184,7 +220,7 @@ blueprint! {
             valid_proof
         }
 
-        fn get_voter_card_data(&self, validated_proof: &ValidatedProof) -> VoterCard
+        fn get_voter_card_data_from_proof(&self, validated_proof: &ValidatedProof) -> VoterCard
         {
             let resource_manager: &ResourceManager =
                 borrow_resource_manager!(self.voter_card_address);

@@ -21,6 +21,9 @@ pub struct VoterCard {
     pub lock_epoch: u64,
 
     /// Votes casted by the voter
+    pub total_number_of_token : Decimal,
+    pub locked_tokens: Vec<Decimal>,
+    pub lock_epoch: Vec<u64>,
     pub votes : Vec<(usize, ProposalStatus)>,
 
     /// Possible delagtees of the voter
@@ -40,9 +43,10 @@ impl VoterCard
 
         VoterCard
         {
-            voter_id: voter_id,
-            nb_of_token: initial_tokens,
-            lock_epoch: Self::current_epoch() ,
+            voter_id: voter_id, //new_id.clone(),
+            total_number_of_token : initial_tokens,
+            locked_tokens: vec![initial_tokens],
+            lock_epoch: vec![Self::current_epoch()] ,
             votes: vec![],
             delegatees: vec![]
         }
@@ -67,7 +71,8 @@ impl VoterCard
         if !self.can_delegate_to(other_voter)
         {
             self.delegatees.push(other_voter);
-            self.lock_epoch = Self::current_epoch();
+            // self.lock_epoch = Self::current_epoch();
+            self.init_fusion();
         }
     }
 
@@ -113,6 +118,12 @@ impl VoterCard
 
     /// This function is used as a trick to be able to unit test the module.
     /// The function `Runtime::current_epoch` returns a `Not yet implemented error`.
+    fn init_fusion(&mut self){
+        let total_amount = self.locked_tokens.iter().sum();
+        self.locked_tokens = vec![total_amount];
+        self.lock_epoch = vec![Self::current_epoch()];
+    }
+
     #[inline]
     fn current_epoch() -> u64
     {
@@ -127,8 +138,19 @@ impl VoterCard
 #[cfg(test)]
 mod tests
 {
+    use scrypto::dec;
+    use scrypto::prelude::NonFungibleId;
     use crate::proposals::ProposalStatus;
     use crate::voter_card::VoterCard;
+
+
+    #[test]
+    fn test_correct_initialization()
+    {
+        let voter_card = VoterCard::new(0, Some(dec!("45")));
+        assert_eq!(voter_card.locked_tokens, vec![dec!("45")]);
+        assert!(voter_card.can_delegate_to(voter_card.voter_id));
+    }
 
     #[test]
     fn test_delegate()
