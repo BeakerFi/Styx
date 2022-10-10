@@ -34,6 +34,12 @@ impl VoterCard
         }
     }
 
+    pub fn add_amount(&mut self, amount : Decimal) {
+        self.total_number_of_token += amount;
+        self.locked_tokens.push(amount);
+        self.lock_epoch.push(Self::current_epoch())
+    }
+
 
     pub fn can_delegate_to(&self, other_voter: u64) -> bool
     {

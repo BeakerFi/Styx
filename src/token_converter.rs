@@ -76,7 +76,20 @@ blueprint! {
             self.emission_vault.take(1)
         }
 
-        pub fn lock(&mut self, voter_card : Bucket, deposit : Bucket) -> Bucket {
+        pub fn mint_voter_card(&mut self) -> Bucket {
+
+            let voter_card_bucket = self.internal_authority.authorize(|| {
+                borrow_resource_manager!(self.voter_card_address).mint_non_fungible(
+                    &NonFungibleId::from_u64(self.new_voter_card_id),
+                    VoterCard::new(self.new_voter_card_id, None)
+                )
+            });
+            self.new_voter_card_id+=1;
+
+            voter_card_bucket
+        }
+
+        pub fn mint_voter_card_with_bucket(&mut self, deposit : Bucket) -> Bucket {
             assert_eq!(deposit.resource_address(), self.styx_address);
 
             info!("You are going to lock : {}", deposit.amount());
@@ -90,6 +103,29 @@ blueprint! {
             self.new_voter_card_id+=1;
 
             voter_card_bucket
+        }
+
+        
+
+        pub fn lock(&mut self, voter_card_proof : Proof, deposit : Bucket) {
+            assert_eq!(deposit.resource_address(), self.styx_address);
+            let amount = deposit.amount();
+
+            let resource_manager : &mut ResourceManager = borrow_resource_manager!(self.voter_card_address);
+
+            let validated_proof = self.check_proof(voter_card_proof);
+
+            let id = validated_proof.non_fungible::<VoterCard>().id();
+
+            // avoir accès à validated
+            let mut voter_card : VoterCard = self.get_voter_card_data_from_proof(&validated_proof);
+
+
+            voter_card.add_amount(amount);
+
+            self.internal_authority
+                .authorize(|| resource_manager.update_non_fungible_data(&id, voter_card));
+
         }
 
         pub fn unlock(&mut self, proof : Proof, amount: Decimal) -> Bucket {
@@ -177,15 +213,6 @@ blueprint! {
                 borrow_resource_manager!(self.voter_card_address);
             let id = validated_proof.non_fungible::<VoterCard>().id();
             resource_manager.get_non_fungible_data::<VoterCard>(&id)
-        }
-
-        fn get_voter_card_data(&self, voter_card_bucket : Bucket ) -> VoterCard {
-
-            let resource_manager: &ResourceManager =
-                borrow_resource_manager!(self.voter_card_address);
-            let id = voter_card_bucket.non_fungible::<VoterCard>().id();
-            resource_manager.get_non_fungible_data::<VoterCard>(&id)
-
         }
 
     }
