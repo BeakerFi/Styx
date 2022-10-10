@@ -25,7 +25,7 @@ blueprint! {
         
 
         // Instantiate given the initial_supply return the component adress of the DAO, the external admin badge that allow to mint new tokens and        
-        pub fn instantiate(initial_supply: Decimal) -> (ComponentAddress, Bucket, Bucket) {
+        pub fn instantiate() -> (ComponentAddress, Bucket) {
 
 
             // If the DAO is not instancied with an admin badge, a default one is created to the instantiation and then returned to the instantiator
@@ -35,12 +35,12 @@ blueprint! {
             .burnable(rule!(allow_all), LOCKED)
             .initial_supply(dec!("1"));
  
-            Self::instantiate_custom(default_admin_badge, initial_supply)
+            Self::instantiate_custom(default_admin_badge)
         }
 
 
         // A contract can instantiate a DAO with it's own internal admin badge which give the power to mint new styx
-        pub fn instantiate_custom(admin_badge : Bucket, initial_supply: Decimal) -> (ComponentAddress, Bucket, Bucket) {
+        pub fn instantiate_custom(admin_badge : Bucket) -> (ComponentAddress, Bucket) {
 
             
             let internal_admin: Bucket = ResourceBuilder::new_fungible()
