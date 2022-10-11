@@ -85,8 +85,11 @@ pub struct Proposal
     /// To whom someone has delegated (should implement a Union-Find algorithm for better complexity)
     pub delegation_to: HashMap<u64, u64>,
 
-    /// Epoch of expiration
+    /// Epoch of expiration of the current Proposal period
     pub epoch_expiration: u64,
+
+    /// Amount of tokens emitted at the Proposal creation
+    pub total_emitted_tokens : Decimal
 
 }
 
@@ -94,8 +97,12 @@ impl Proposal
 {
 
     /// Adds a delegation link between two voters and makes sure that there is no delegation loop by
-    /// doing so.
-    /// It also transfers the delagetd votes of the person delegating to the delegatee
+    /// doing so.It also transfers the delegated votes of the person delegating to the delegatee
+    ///
+    /// # Arguments
+    /// * `from` - user delegating VoterCard's id
+    /// * `to` - user delegating to VoterCard's id
+    /// * `amount` - amount of voting power delegated
     pub fn add_delegation(&mut self, from: u64, to: u64, amount: Decimal)
     {
 
@@ -142,6 +149,9 @@ impl Proposal
 
     /// Returns the delegatee's id of a voter for the Proposal. If the voter did not delegate
     /// its tokens to anyone, then it returns the id of the voter.
+    ///
+    /// # Arguments
+    /// * `of` - user VoterCard's id from which to check to whom they are delegating
     pub fn get_delegatee(&self, of: u64) -> u64
     {
         match self.delegation_to.get(&of)
@@ -223,7 +233,8 @@ mod tests
             blank_votes: Default::default(),
             delegated_votes: Default::default(),
             delegation_to: Default::default(),
-            epoch_expiration: 0
+            epoch_expiration: 0,
+            total_emitted_tokens: dec!(1)
         };
 
         prop.add_delegation(0,1, dec!(1000));
@@ -247,7 +258,8 @@ mod tests
             blank_votes: Default::default(),
             delegated_votes: Default::default(),
             delegation_to: Default::default(),
-            epoch_expiration: 0
+            epoch_expiration: 0,
+            total_emitted_tokens: dec!(1)
         };
 
         prop.add_delegation(0, 1, dec!(1000));
@@ -273,7 +285,8 @@ mod tests
             blank_votes: Default::default(),
             delegated_votes: Default::default(),
             delegation_to: Default::default(),
-            epoch_expiration: 0
+            epoch_expiration: 0,
+            total_emitted_tokens: dec!(1)
         };
 
         prop.add_delegation(0, 1, dec!(1000));
@@ -299,7 +312,8 @@ mod tests
             blank_votes: Default::default(),
             delegated_votes: Default::default(),
             delegation_to: Default::default(),
-            epoch_expiration: 0
+            epoch_expiration: 0,
+            total_emitted_tokens: dec!(1)
         };
 
         prop.add_delegation(0, 1, dec!(1000));

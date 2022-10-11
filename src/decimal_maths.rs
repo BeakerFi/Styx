@@ -1,7 +1,7 @@
 //! This is an extract of a mathematical library that I am building for Scrypto.
 //! Some things are still not fully optimized (it would be better to work with BigUInts).
-//! There are still some bugs when working with Decimals that are bigger than 10^41 but it is hard
-//! to debug because there are partly due to bugs in the Decimal library.
+//! There are still some bugs when working with Decimals that negative and Decimals bigger than 10^41.
+//! The latter is hard to debug because there are partly due to bugs in the Decimal library.
 
 use std::fmt;
 use std::ops::Neg;
