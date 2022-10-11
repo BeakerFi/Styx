@@ -25,5 +25,5 @@ extern crate core;
 pub mod styx_dao;
 pub mod ballot_box;
 pub mod decimal_maths;
-pub mod proposals;
+pub mod proposal;
 pub mod voter_card;

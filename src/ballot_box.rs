@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use scrypto::dec;
 use scrypto::math::Decimal;
 use crate::decimal_maths::{cbrt, ln};
-use crate::proposals::{Proposal, ProposalStatus, Vote, Change};
+use crate::proposal::{Proposal, ProposalStatus, Vote, Change};
 use crate::voter_card::VoterCard;
 
 // Suggestion: before a proposal, duration: 1 week ~ 168 epoch ( 1 epoch ~ 1h)
@@ -78,7 +78,7 @@ impl BallotBox
     /// ```
     /// use radix_engine::ledger::TypedInMemorySubstateStore;
     /// use styx::ballot_box::BallotBox;
-    /// use styx::proposals::Change;
+    /// use styx::proposal::Change;
     /// use scrypto::prelude::dec;
     /// use scrypto_unit::TestRunner;
     ///
@@ -120,7 +120,7 @@ impl BallotBox
     /// ```
     /// use radix_engine::ledger::TypedInMemorySubstateStore;
     /// use styx::ballot_box::BallotBox;
-    /// use styx::proposals::Change;
+    /// use styx::proposal::Change;
     /// use scrypto::prelude::dec;
     /// use scrypto_unit::TestRunner;
     /// use styx::voter_card::VoterCard;
@@ -161,7 +161,7 @@ impl BallotBox
     /// ```
     /// use radix_engine::ledger::TypedInMemorySubstateStore;
     /// use styx::ballot_box::BallotBox;
-    /// use styx::proposals::Change;
+    /// use styx::proposal::Change;
     /// use scrypto::prelude::dec;
     /// use scrypto_unit::TestRunner;
     /// use styx::voter_card::VoterCard;
@@ -242,7 +242,7 @@ impl BallotBox
     /// ```
     /// use radix_engine::ledger::TypedInMemorySubstateStore;
     /// use styx::ballot_box::BallotBox;
-    /// use styx::proposals::Change;
+    /// use styx::proposal::Change;
     /// use scrypto::prelude::dec;
     /// use scrypto_unit::TestRunner;
     /// use styx::voter_card::VoterCard;
@@ -307,7 +307,7 @@ impl BallotBox
     /// ```
     /// use radix_engine::ledger::TypedInMemorySubstateStore;
     /// use styx::ballot_box::BallotBox;
-    /// use styx::proposals::{Change, Vote};
+    /// use styx::proposal::{Change, Vote};
     /// use scrypto::prelude::dec;
     /// use scrypto_unit::TestRunner;
     /// use styx::voter_card::VoterCard;
@@ -445,7 +445,7 @@ mod tests
     use scrypto::math::Decimal;
     use scrypto_unit::TestRunner;
     use crate::ballot_box::BallotBox;
-    use crate::proposals::{ProposalStatus, Vote, Change};
+    use crate::proposal::{ProposalStatus, Vote, Change};
     use crate::voter_card::VoterCard;
 
     #[test]

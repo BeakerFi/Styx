@@ -216,7 +216,7 @@ impl ProposalStatus
 mod tests
 {
     use scrypto::dec;
-    use crate::proposals::{Proposal, ProposalStatus, Change};
+    use crate::proposal::{Proposal, ProposalStatus, Change};
 
     #[test]
     fn test_add_delegation()

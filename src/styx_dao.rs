@@ -1,6 +1,6 @@
 use scrypto::prelude::*;
 use crate::ballot_box::BallotBox;
-use crate::proposals::{Vote, Change};
+use crate::proposal::{Vote, Change};
 use crate::voter_card::VoterCard;
 
 blueprint! {

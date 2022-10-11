@@ -5,7 +5,7 @@
 use scrypto::prelude::{Decimal};
 use scrypto::{dec, NonFungibleData};
 use crate::decimal_maths::{exp};
-use crate::proposals::ProposalStatus;
+use crate::proposal::ProposalStatus;
 
 /// A voter card, records the different tokens locked and the epoch when they were.
 /// It also records the votes that the voters casted and the delegatees the voter has.
@@ -142,7 +142,7 @@ impl VoterCard
     ///
     /// # Examples
     /// ```
-    /// use styx::proposals::ProposalStatus;
+    /// use styx::proposal::ProposalStatus;
     /// use styx::voter_card::VoterCard;
     /// let mut new_voter_card = VoterCard::new(0);
     /// // Can vote during voting phase
@@ -199,7 +199,7 @@ impl VoterCard
     /// use radix_engine::ledger::TypedInMemorySubstateStore;
     /// use scrypto::dec;
     /// use scrypto_unit::TestRunner;
-    /// use styx::proposals::ProposalStatus;
+    /// use styx::proposal::ProposalStatus;
     /// use styx::voter_card::VoterCard;
     ///
     /// let mut new_voter_card = VoterCard::new(0);
@@ -244,7 +244,7 @@ impl VoterCard
     /// use radix_engine::ledger::TypedInMemorySubstateStore;
     /// use scrypto::dec;
     /// use scrypto_unit::TestRunner;
-    /// use styx::proposals::ProposalStatus;
+    /// use styx::proposal::ProposalStatus;
     /// use styx::voter_card::VoterCard;
     ///
     /// let mut new_voter_card = VoterCard::new(0);
@@ -339,7 +339,7 @@ mod tests
     use radix_engine::ledger::TypedInMemorySubstateStore;
     use scrypto::dec;
     use scrypto_unit::TestRunner;
-    use crate::proposals::ProposalStatus;
+    use crate::proposal::ProposalStatus;
     use crate::voter_card::VoterCard;
 
 
