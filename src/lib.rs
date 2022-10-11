@@ -1,5 +1,5 @@
 //! # Styx DAO
-//! A Scrypto Package that manages a DAO.
+//! The Scrypto DAO to make the most of Cerberus
 //!
 //! # Functionalities
 //! The DAO can hold assets and be associated to another blueprint that can emit DAO tokens using
