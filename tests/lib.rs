@@ -326,6 +326,16 @@ fn gift_asset(account_addr: &str, dao_address : &str , amount : &str, asset_addr
     output
 }
 
+// Arthur : à parser pour retourner le bon amount
+fn amount_owned(account_addr: &str, dao_address : &str , asset_address : &str) -> String {
+    let output = run_command(Command::new("resim")
+                             .arg("run")
+                             .arg("src/rtm/amoun_owned.rtm")
+                             .env("account", account_addr)
+                             .env("dao", &dao_address)
+                             .env("asset", asset_address));
+    output
+}
 
 
 #[test]
