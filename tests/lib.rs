@@ -549,6 +549,7 @@ fn claim_asset(account_addr: &str, dao_address : &str , voter_card_address : &st
     output
 }
 
+
 #[test]
 fn test_publish() {
     reset_sim();
@@ -565,8 +566,7 @@ fn test_instantiate() {
     let user = create_account();
     let package_addr = publish_package(Some("."));
     let dao = instantiate(&user.address, &package_addr);
-    let owned = dao.get_amount_owned(&user.address, &dao.styx_adress);
-    assert_eq!(owned.unwrap(), dec!(100));
+    println!("dao component : {:#?}", dao);
 }
 
 #[test]
