@@ -1,26 +1,3 @@
-//! NOTE these tests use a global resource (the resim exectuable's
-//! simulator) and therefore MUST be run single threaded, like this
-//! from the command line:
-//!
-//! cargo test -- --test-threads=1
-//!
-//! Also note that if you run the tests with increased output
-//! verbosity enabled you may see panics or stacktraces during a
-//! successful run. This is expected behaviour as we use
-//! std::panic::catch_unwind to test calls under conditions that
-//! should make them panic. One way to see a lot of this sort of
-//! output would be to run the tests like this (in a Unix-like shell):
-//! 
-//! RUST_BACKTRACE=1 cargo test -- --nocapture --test-threads=1
-
-use std::process::Command;
-use std::collections::HashSet;
-use std::collections::HashMap;
-use std::result;
-use regex::Regex;
-use lazy_static::lazy_static;
-
-
 use radix_engine::ledger::*;
 use radix_engine::transaction::TransactionReceipt;
 use scrypto::core::NetworkDefinition;
@@ -87,7 +64,7 @@ fn create_account() -> Account {
         static ref RE_PUBKEY:  Regex = Regex::new(r"Public key: (\w*)").unwrap();
         static ref RE_PRIVKEY: Regex = Regex::new(r"Private key: (\w*)").unwrap();
     }
-    
+
     let address = &RE_ADDRESS.captures(&output).expect("Failed to parse new-account address")[1];
     let pubkey = &RE_PUBKEY.captures(&output).expect("Failed to parse new-account pubkey")[1];
     let privkey = &RE_PRIVKEY.captures(&output).expect("Failed to parse new-account privkey")[1];
@@ -99,7 +76,7 @@ fn create_account() -> Account {
     }
 }
 
-// Create a token and return it's address 
+// Create a token and return it's address
 fn create_admin_badge() -> String {
     let output = run_command(Command::new("resim")
                             .arg("new-token-fixed")
@@ -107,7 +84,7 @@ fn create_admin_badge() -> String {
                             .arg("admin_bagde")
                             .arg("1")
                         );
-    
+
     String::from(output.split("\n").collect::<Vec<&str>>()[13].split(" ").collect::<Vec<&str>>()[2])
 
 }
@@ -124,7 +101,7 @@ fn publish_package(path: Option<&str>) -> String {
     lazy_static! {
         static ref RE_ADDRESS: Regex = Regex::new(r"New Package: (\w*)").unwrap();
     }
-    
+
     RE_ADDRESS.captures(&output).expect("Failed to parse new blueprint address")[1].to_string()
 }
 
@@ -145,8 +122,8 @@ fn instantiate(account_addr: &str, package_addr: &str)
                              .env("package", &package_addr)
                              .env("initial_supply", "100"));
 
-                             
-    
+
+
 
     println!("{}",output);
 
@@ -176,7 +153,7 @@ fn instantiate(account_addr: &str, package_addr: &str)
         styx_adress: String::from(styx_adress),
         voter_card_address: String::from(voter_card_adress),
     };
-    dao 
+    dao
 }
 
 
@@ -195,8 +172,8 @@ fn instantiate_custom(account_addr: &str, package_addr: &str, admin_badge_addr: 
                              .env("admin_badge", admin_badge_addr)
                              .env("initial_supply", "100"));
 
-                             
-    
+
+
 
     println!("{}",output);
 
@@ -226,7 +203,7 @@ fn instantiate_custom(account_addr: &str, package_addr: &str, admin_badge_addr: 
         styx_adress: String::from(styx_adress),
         voter_card_address: String::from(voter_card_adress),
     };
-    dao 
+    dao
 }
 
 

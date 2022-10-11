@@ -1,9 +1,11 @@
-//! We define here what is a voter card, what enables users to vote and participate in the DAO.
+//! We define here what is a voter card, which enables users to vote and participate in the DAO.
+//! Note: we made the choice to pass the `current_epoch` as an argument of the functions instead of
+//! calling `Runtime::current_epoch` to be able to unit test the file without using blueprints
 
 use scrypto::prelude::{Decimal};
 use scrypto::{dec, NonFungibleData};
-use crate::decimal_maths::{cbrt, exp, ln};
-use crate::proposals::ProposalStatus;
+use crate::decimal_maths::{exp};
+use crate::proposal::ProposalStatus;
 
 /// A voter card, records the different tokens locked and the epoch when they were.
 /// It also records the votes that the voters casted and the delegatees the voter has.
@@ -30,6 +32,15 @@ pub struct VoterCard {
 impl VoterCard
 {
     /// Instantiates a new voter card from an id and an amount of tokens
+    ///
+    /// # Arguments
+    /// * `voter_id` - id to associate to the VoterCard
+    ///
+    /// # Examples
+    /// ```
+    /// use styx::voter_card::VoterCard;
+    /// let new_voter_card = VoterCard::new(0);
+    /// ```
     pub fn new(voter_id: u64) -> VoterCard
     {
         VoterCard
@@ -42,13 +53,42 @@ impl VoterCard
         }
     }
 
-    pub fn add_tokens(&mut self, amount: Decimal, lock_period: u64)
+    /// Adds tokens with a given lock_period to the VoterCard
+    ///
+    /// # Arguments
+    /// * `amount` - amount of tokens to add
+    /// * `lock_epoch`  - epoch when the tokens were locked
+    ///
+    /// # Examples
+    /// ```
+    /// use radix_engine::ledger::TypedInMemorySubstateStore;
+    /// use scrypto::dec;
+    /// use scrypto_unit::TestRunner;
+    /// use styx::voter_card::VoterCard;
+    ///
+    /// let mut store = TypedInMemorySubstateStore::with_bootstrap();
+    /// let mut test_runner = TestRunner::new(true, &mut store);
+    /// let mut new_voter_card = VoterCard::new(0);
+    /// new_voter_card.add_tokens(dec!(10), test_runner.get_current_epoch());
+    /// assert_eq!(new_voter_card.total_number_of_token, dec!(10));
+    /// ```
+    pub fn add_tokens(&mut self, amount: Decimal, lock_epoch: u64)
     {
-        self.total_number_of_token += amount;
-        self.locked_tokens.push((amount, lock_period));
+        self.total_number_of_token = self.total_number_of_token + amount;
+        self.locked_tokens.push((amount, lock_epoch));
     }
 
     /// Returns a boolean stating whether the given voter can delegate its tokens to another given voter
+    ///
+    /// # Arguments
+    /// * `other_voter` - voter to check whether they can delegate to
+    ///
+    /// # Examples
+    /// ```
+    /// use styx::voter_card::VoterCard;
+    /// let mut new_voter_card = VoterCard::new(0);
+    /// assert!(!new_voter_card.can_delegate_to(1));
+    /// ```
     pub fn can_delegate_to(&self, other_voter: u64) -> bool
     {
         if self.voter_id == other_voter
@@ -65,7 +105,25 @@ impl VoterCard
         false
     }
 
-    /// Adds a delegatee to the possible delegatees of the voter and resets the lock epoch
+    /// Adds a delegatee to the possible delegatees of the voter, resets the lock epoch and merges
+    /// all the locked tokens
+    ///
+    /// # Arguments
+    /// * `other_voter` - VoterCard id of the user to add to possible delagatee
+    /// * `current_epoch`  - current epoch
+    ///
+    /// # Examples
+    /// ```
+    /// use radix_engine::ledger::TypedInMemorySubstateStore;
+    /// use scrypto_unit::TestRunner;
+    /// use styx::voter_card::VoterCard;
+    /// let mut store = TypedInMemorySubstateStore::with_bootstrap();
+    /// let mut test_runner = TestRunner::new(true, &mut store);
+    ///
+    /// let mut new_voter_card = VoterCard::new(0);
+    /// new_voter_card.add_delegatee(1, test_runner.get_current_epoch());
+    /// assert!(new_voter_card.can_delegate_to(1));
+    /// ```
     pub fn add_delegatee(&mut self, other_voter: u64, current_epoch: u64)
     {
         if !self.can_delegate_to(other_voter)
@@ -77,6 +135,22 @@ impl VoterCard
 
     /// Returns a boolean stating if the given voter can vote for a given proposal.
     /// If they can vote for the proposal, the list of votes is updated.
+    ///
+    /// # Arguments
+    /// * `proposal_id` - id of the Proposal
+    /// * `current_status`  - status of the proposal
+    ///
+    /// # Examples
+    /// ```
+    /// use styx::proposal::ProposalStatus;
+    /// use styx::voter_card::VoterCard;
+    /// let mut new_voter_card = VoterCard::new(0);
+    /// // Can vote during voting phase
+    /// assert!(new_voter_card.try_vote_for(0, &ProposalStatus::VotingPhase));
+    /// // Cannot vote twice
+    /// assert!(!new_voter_card.try_vote_for(0, &ProposalStatus::VotingPhase));
+    ///
+    /// ```
     pub fn try_vote_for(&mut self, proposal_id: usize, current_status: &ProposalStatus) -> bool
     {
         if !current_status.is_voting_phase() && !current_status.is_suggestion_phase()
@@ -114,9 +188,33 @@ impl VoterCard
         }
     }
 
+    /// Retrieves a certain amount of locked tokens from the voter card
+    /// Last elements of the list (ie. tokens added last) are retrived first
+    ///
+    /// # Arguments
+    /// * `amount` - amount of tokens to retrieve
+    ///
+    /// # Examples
+    /// ```
+    /// use radix_engine::ledger::TypedInMemorySubstateStore;
+    /// use scrypto::dec;
+    /// use scrypto_unit::TestRunner;
+    /// use styx::proposal::ProposalStatus;
+    /// use styx::voter_card::VoterCard;
+    ///
+    /// let mut new_voter_card = VoterCard::new(0);
+    /// let mut store = TypedInMemorySubstateStore::with_bootstrap();
+    /// let mut test_runner = TestRunner::new(true, &mut store);
+    ///
+    /// new_voter_card.add_tokens(dec!(10), test_runner.get_current_epoch());
+    /// println!("{}", new_voter_card.total_number_of_token);
+    /// new_voter_card.retrieve_tokens(dec!(8));
+    /// assert_eq!(new_voter_card.total_number_of_token, dec!(2));
+    ///
+    /// ```
     pub fn retrieve_tokens(&mut self, amount: Decimal)
     {
-        assert!(amount > self.total_number_of_token, "Cannot retrieve more tokens than owned");
+        assert!(amount <= self.total_number_of_token, "Cannot retrieve more tokens than owned");
 
         if amount == self.total_number_of_token
         {
@@ -139,6 +237,25 @@ impl VoterCard
         }
     }
 
+    /// Retrieves amm locked tokens from the voter card
+    ///
+    /// # Examples
+    /// ```
+    /// use radix_engine::ledger::TypedInMemorySubstateStore;
+    /// use scrypto::dec;
+    /// use scrypto_unit::TestRunner;
+    /// use styx::proposal::ProposalStatus;
+    /// use styx::voter_card::VoterCard;
+    ///
+    /// let mut new_voter_card = VoterCard::new(0);
+    /// let mut store = TypedInMemorySubstateStore::with_bootstrap();
+    /// let mut test_runner = TestRunner::new(true, &mut store);
+    ///
+    /// new_voter_card.add_tokens(dec!(10), test_runner.get_current_epoch());
+    /// new_voter_card.retrieve_all_tokens();
+    /// assert_eq!(new_voter_card.total_number_of_token, dec!(0));
+    ///
+    /// ```
     pub fn retrieve_all_tokens(&mut self) -> Decimal
     {
         let total_number_of_token = self.total_number_of_token;
@@ -148,9 +265,28 @@ impl VoterCard
     }
 
     /// Computes the voting power associated to a voter card
-    /// The function is power(t,x) = (tanh(-2016/t) + 1)*cbrt(ln(x)),
-    /// where `t = current_epoch - lock_epoch` and `x` is the total amount of tokens.
-    /// For more details on this choice, please read the whitepaper.
+    /// For more details on the function choice, please read the whitepaper.
+    ///
+    /// # Arguments
+    /// * `current_epoch` - current epoch
+    ///
+    /// # Examples
+    /// ```
+    /// use radix_engine::ledger::TypedInMemorySubstateStore;
+    /// use scrypto::dec;
+    /// use scrypto_unit::TestRunner;
+    /// use styx::voter_card::VoterCard;
+    ///
+    /// let mut new_voter_card = VoterCard::new(0);
+    /// let mut store = TypedInMemorySubstateStore::with_bootstrap();
+    /// let mut test_runner = TestRunner::new(true, &mut store);
+    ///
+    /// new_voter_card.add_tokens(dec!(56), test_runner.get_current_epoch());
+    /// let current_epoch = test_runner.get_current_epoch();
+    /// test_runner.set_current_epoch(current_epoch + 1000);
+    ///
+    /// let votes = new_voter_card.voting_power(test_runner.get_current_epoch());
+    /// ```
     pub fn voting_power(&self, current_epoch: u64) -> Decimal
     {
         let mut total = Decimal::zero();
@@ -158,13 +294,18 @@ impl VoterCard
         {
             // In our tests, time can get negative so we transform in Decimal before subtracting
             let time = current_epoch - *time_tmp;
-            total = total + Self::sub_voting_function(time, *tokens);
+            total = total + *tokens * Self::sub_voting_function(time);
         }
 
         total
     }
 
-    fn sub_voting_function(time: u64, tokens: Decimal) -> Decimal
+    /// Internal function used to compute voting power
+    ///
+    /// # Arguments
+    /// * `time` - time variable
+    ///
+    fn sub_voting_function(time: u64) -> Decimal
     {
 
         if time==0
@@ -175,18 +316,14 @@ impl VoterCard
 
         let exp = exp(- dec!(2016) / time );
         let time_multiplicator =  ( exp - 1 )/ (exp + 1)  + 1;
-        if time_multiplicator == Decimal::zero()
-        {
-            Decimal::zero()
-        }
-        else
-        {
-            let corrected_tokens = time_multiplicator*tokens + 1; // Add 1 to make sure that it is > 0
-            let total = cbrt(ln(corrected_tokens));
-            total.max(Decimal::zero())
-        }
+        time_multiplicator
     }
 
+    /// Internal function used to merge the list of locked tokens
+    ///
+    /// # Arguments
+    /// * `current_epoch` - current epoch
+    ///
     fn merge(&mut self, current_epoch: u64)
     {
         if !self.locked_tokens.is_empty()
@@ -202,8 +339,7 @@ mod tests
     use radix_engine::ledger::TypedInMemorySubstateStore;
     use scrypto::dec;
     use scrypto_unit::TestRunner;
-    use transaction::builder::ManifestBuilder;
-    use crate::proposals::ProposalStatus;
+    use crate::proposal::ProposalStatus;
     use crate::voter_card::VoterCard;
 
 
