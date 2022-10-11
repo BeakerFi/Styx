@@ -139,11 +139,13 @@ fn instantiate(account_addr: &str, package_addr: &str)
 
     let result = output.split("\n").collect::<Vec<&str>>();
 
-    let dao_adress = result[13];
-    let external_admin_adress = result[14];
-    let internal_admin_adress = result[15];
-    let styx_adress = result[16];
-    let voter_card_adress = result[17];
+    let i = 4 ; // for translation due to more info
+
+    let dao_adress = result[13+i];
+    let external_admin_adress = result[14+i];
+    let internal_admin_adress = result[15+i];
+    let styx_adress = result[16+i];
+    let voter_card_adress = result[17+i];
 
     let dao_adress = dao_adress.split(" ").collect::<Vec<&str>>()[2];
     let external_admin_adress = external_admin_adress.split(" ").collect::<Vec<&str>>()[2];
@@ -161,7 +163,6 @@ fn instantiate(account_addr: &str, package_addr: &str)
         styx_adress: String::from(styx_adress),
         voter_card_address: String::from(voter_card_adress),
     };
-    println!("dao component : {:?}",dao);
     dao 
 }
 
@@ -183,7 +184,7 @@ fn test_instantiate() {
     let user = create_account();
     let package_addr = publish_package(Some("."));
     let dao = instantiate(&user.address, &package_addr);
-    println!("dao component : {:?}", dao);
+    println!("dao component : {:#?}", dao);
 }
 
 

@@ -96,6 +96,16 @@ blueprint! {
             };
         
 
+            info!(" external_admin : {},
+                    internal_admin : {},
+                    styx : {},
+                    voter_card : {}",
+                    admin_badge.resource_address(),
+                    dao.internal_authority.resource_address(),
+                    dao.styx_address,
+                    dao.voter_card_address
+                );
+
             return (dao.instantiate().globalize(),admin_badge)
         }
 
