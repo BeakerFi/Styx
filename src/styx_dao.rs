@@ -282,7 +282,7 @@ blueprint! {
         pub fn make_proposal(&mut self, description: String, suggested_changes: Vec<Change>, voter_card_proof: Proof)
         {
             // Check that it is a user of the DAO
-            let validated_id = self.check_proof(voter_card_proof);
+            self.check_proof(voter_card_proof);
             self.ballot_box.make_proposal(description, suggested_changes, Runtime::current_epoch(), self.emitted_tokens);
         }
 
