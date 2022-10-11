@@ -307,12 +307,25 @@ fn unlock(account_addr: &str, dao_address : &str , voter_card_address : &str, bu
 fn unlock_all(account_addr: &str, dao_address : &str , voter_card_address : &str) -> String {
     let output = run_command(Command::new("resim")
                              .arg("run")
-                             .arg("src/rtm/unlock.rtm")
+                             .arg("src/rtm/unlock_all.rtm")
                              .env("account", account_addr)
                              .env("dao", &dao_address)
                              .env("voter_card", voter_card_address));
     output
 }
+
+
+fn gift_asset(account_addr: &str, dao_address : &str , amount : &str, asset_address : &str) -> String {
+    let output = run_command(Command::new("resim")
+                             .arg("run")
+                             .arg("src/rtm/gift_asset.rtm")
+                             .env("account", account_addr)
+                             .env("dao", &dao_address)
+                             .env("asset", asset_address)
+                             .env("amount", amount));
+    output
+}
+
 
 
 #[test]
