@@ -149,23 +149,6 @@ blueprint! {
             return (dao.instantiate().globalize(),admin_badge)
         }
 
-        /// Mints a new voter card with no initial locked tokens and returns it
-        ///
-        /// # Transaction Manifest
-        ///
-        pub fn mint_voter_card(&mut self) -> Bucket {
-
-            let voter_card_bucket = self.internal_authority.authorize(|| {
-                borrow_resource_manager!(self.voter_card_address).mint_non_fungible(
-                    &NonFungibleId::from_u64(self.new_voter_card_id),
-                    VoterCard::new(self.new_voter_card_id)
-                )
-            });
-            self.new_voter_card_id+=1;
-
-            voter_card_bucket
-        }
-
         /// Mints a new voter card with initial locked tokens given as deposit and returns it
         ///
         /// # Arguments
