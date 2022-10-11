@@ -16,6 +16,7 @@
 use std::process::Command;
 use std::collections::HashSet;
 use std::collections::HashMap;
+use std::result;
 use regex::Regex;
 use lazy_static::lazy_static;
 
@@ -42,6 +43,7 @@ struct Account {
 struct DAO_component {
     address: String,
     external_admin_address: String,
+    internal_admin_adress : String,
     styx_adress: String,
     voter_card_address: String,
 }
@@ -129,29 +131,38 @@ fn instantiate(account_addr: &str, package_addr: &str)
                              .env("account", account_addr)
                              .env("package", &package_addr)
                              .env("initial_supply", "100"));
-    lazy_static! {
-        static ref RE_TUPLE: Regex = Regex::new(concat!(
-            r#"Instruction Outputs:\n\W*"#,
-            r#".─ Tuple\(ComponentAddress\("(\w*)"\).*"#,
-            r#"ResourceAddress\("(\w*)"\).*"#,
-            r#"NonFungibleId\("(\w*)"\)"#)).unwrap();
-    }
 
-    // println!("{:?}",RE_TUPLE);
+                             
+    
 
-    let matches = RE_TUPLE.captures(&output).expect(
-        "Failed to parse");
+    println!("{}",output);
+
+    let result = output.split("\n").collect::<Vec<&str>>();
+
+    let dao_adress = result[13];
+    let external_admin_adress = result[14];
+    let internal_admin_adress = result[15];
+    let styx_adress = result[16];
+    let voter_card_adress = result[17];
+
+    let dao_adress = dao_adress.split(" ").collect::<Vec<&str>>()[2];
+    let external_admin_adress = external_admin_adress.split(" ").collect::<Vec<&str>>()[2];
+    let internal_admin_adress = internal_admin_adress.split(" ").collect::<Vec<&str>>()[2];
+    let styx_adress = styx_adress.split(" ").collect::<Vec<&str>>()[2];
+    let voter_card_adress = voter_card_adress.split(" ").collect::<Vec<&str>>()[2];
+
 
 
 
     let dao = DAO_component {
-        address: matches[1].to_string(),
-        external_admin_address: matches[2].to_string(),
-        styx_adress: matches[3].to_string(),
-        voter_card_address: matches[4].to_string(),
+        address: String::from(dao_adress),
+        external_admin_address: String::from(external_admin_adress),
+        internal_admin_adress : String::from(internal_admin_adress),
+        styx_adress: String::from(styx_adress),
+        voter_card_address: String::from(voter_card_adress),
     };
     println!("dao component : {:?}",dao);
-    dao
+    dao 
 }
 
 

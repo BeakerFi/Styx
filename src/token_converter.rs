@@ -93,10 +93,10 @@ blueprint! {
                 emitted_tokens: Decimal::zero(),
                 assets_under_management: HashMap::new(),
                 claimable_tokens: HashMap::new()
-            }
-            .instantiate();
+            };
+        
 
-            return (dao.globalize(),admin_badge)
+            return (dao.instantiate().globalize(),admin_badge)
         }
 
 
