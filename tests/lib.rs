@@ -229,6 +229,16 @@ fn instantiate_custom(account_addr: &str, package_addr: &str, admin_badge_addr: 
 }
 
 
+fn mint_voter_card_with_bucket(account_addr: &str,dao_address : &str , styx_address : &str, bucket_amount : &str) {
+    let output = run_command(Command::new("resim")
+                             .arg("run")
+                             .arg("src/rtm/mint_voter_card_with_bucket.rtm")
+                             .env("account", account_addr)
+                             .env("dao", &dao_address)
+                             .env("styx", styx_address)
+                             .env("amount", bucket_amount));
+}
+
 
 #[test]
 fn test_publish() {

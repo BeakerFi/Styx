@@ -3,14 +3,14 @@
 # Parameters:
 #
 # package: address of the published package containing the
-#          Radfolio component
+#          Styx component
 #
 # account: address of the user account that will receive
 #          the admin badges
 #
-# admin_badge : the external admin badge which will be able to mint token
+# admin_badge : the external admin badge which will be able to mint tokens
 #
-# initial_supply: number of supply that will be minted at the instantition
+# initial_supply: amount that will be minted at the instantition
 #
 
 CALL_METHOD 
