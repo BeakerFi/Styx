@@ -3,11 +3,13 @@
 #
 # dao: address of the dao component
 #
-# account: address of the user account that will lock tokens 
+# account:  
 #  
-# amount: number of supply that will be locked
+# delegate_to: 
 #
-# voter_card : proof of VoterCard
+# voter_card
+#
+# vote
 #
 
 CALL_METHOD 
@@ -23,14 +25,15 @@ CALL_METHOD
 CREATE_PROOF_FROM_AUTH_ZONE 
     ResourceAddress("${voter_card}") 
     Proof("VoterCard");
-
+  
 CALL_METHOD
    ComponentAddress("${dao}")
-   "unlock"
+   "delegate_with_proposal"
+   ${proposal_id}u64
    Proof("VoterCard")
-   Decimal("${amount}");
+   Enum("${vote}");
 
-CALL_METHOD 
+CALL_METHOD
     ComponentAddress("${account}") 
     "deposit_batch" 
     Expression("ENTIRE_WORKTOP");
