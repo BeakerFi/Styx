@@ -147,7 +147,7 @@ fn instantiate(account_addr: &str, package_addr: &str)
 
 
 
-    println!("{}",output);
+    //println!("{}",output);
 
     let result = output.split("\n").collect::<Vec<&str>>();
 
@@ -229,7 +229,7 @@ fn instantiate_custom(account_addr: &str, package_addr: &str, admin_badge_addr: 
 }
 
 
-fn mint_voter_card_with_bucket(account_addr: &str,dao_address : &str , styx_address : &str, bucket_amount : &str) {
+fn mint_voter_card_with_bucket(account_addr: &str,dao_address : &str , styx_address : &str, bucket_amount : &str) -> String {
     let output = run_command(Command::new("resim")
                              .arg("run")
                              .arg("src/rtm/mint_voter_card_with_bucket.rtm")
@@ -237,10 +237,11 @@ fn mint_voter_card_with_bucket(account_addr: &str,dao_address : &str , styx_addr
                              .env("dao", &dao_address)
                              .env("styx", styx_address)
                              .env("amount", bucket_amount));
+    output
 }
 
 
-fn withdraw(account_addr: &str,dao_address : &str , external_badge_address : &str, amount : &str) {
+fn withdraw(account_addr: &str,dao_address : &str , external_badge_address : &str, amount : &str) -> String {
     let output = run_command(Command::new("resim")
                              .arg("run")
                              .arg("src/rtm/withdraw.rtm")
@@ -248,8 +249,8 @@ fn withdraw(account_addr: &str,dao_address : &str , external_badge_address : &st
                              .env("dao", &dao_address)
                              .env("admin_badge", external_badge_address)
                              .env("amount", amount));
-
-    println!("{}", output);
+    output
+    //println!("{}", output);
 }
 
 
@@ -289,8 +290,19 @@ fn test_withdraw() {
     let user = create_account();
     let package_addr = publish_package(Some("."));
     let dao = instantiate(&user.address, &package_addr);
-    withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
+    println!("{}",withdraw(&user.address, &dao.address, &dao.external_admin_address, "10"));
 }
+
+#[test]
+fn test_mint_voter_card() {
+    reset_sim();
+    let user = create_account();
+    let package_addr = publish_package(Some("."));
+    let dao = instantiate(&user.address, &package_addr);
+    withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
+    println!("{}",mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_adress, "5"));
+}
+
 
 
 #[test]
