@@ -104,10 +104,6 @@ blueprint! {
                     rule!( require(internal_admin.resource_address())),
                     MUTABLE(internal_access.clone())
                 )
-                .restrict_withdraw(
-                    rule!( require(internal_admin.resource_address())),
-                    LOCKED
-                )
                 .initial_supply(initial_supply);
 
             let styx_address: ResourceAddress = styx_bucket.resource_address();

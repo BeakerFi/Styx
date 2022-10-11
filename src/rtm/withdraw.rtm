@@ -17,20 +17,11 @@ CALL_METHOD
     "lock_fee" 
     Decimal("100");
 
+
 CALL_METHOD
     ComponentAddress("${account}")
-    "withdraw"
+    "create_proof"
     ResourceAddress("${admin_badge}");
-
-
-TAKE_FROM_WORKTOP
-    ResourceAddress("${admin_badge}")
-    Bucket("Admin Badge");
-
-
-CREATE_PROOF_FROM_BUCKET 
-    Bucket("Admin Badge") 
-    Proof("Admin");
   
 CALL_METHOD
    ComponentAddress("${dao}")
