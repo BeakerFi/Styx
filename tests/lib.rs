@@ -315,6 +315,18 @@ fn unlock_all(account_addr: &str, dao_address : &str , voter_card_address : &str
 }
 
 
+fn support_proposal(account_addr: &str, dao_address : &str , voter_card_address : &str, proposal_id : &str) -> String {
+    let output = run_command(Command::new("resim")
+                             .arg("run")
+                             .arg("src/rtm/unlock_all.rtm")
+                             .env("account", account_addr)
+                             .env("dao", &dao_address)
+                             .env("voter_card", voter_card_address)
+                             .env("proposal_id", proposal_id));
+    output
+}
+
+
 fn gift_asset(account_addr: &str, dao_address : &str , amount : &str, asset_address : &str) -> String {
     let output = run_command(Command::new("resim")
                              .arg("run")
@@ -430,21 +442,6 @@ fn test_lock() {
     show(&user.address);
 }
 
-// double card lock
-#[test]
-fn test_lock_with_two_cards() {
-    reset_sim();
-    let user = create_account();
-    let package_addr = publish_package(Some("."));
-    let dao = instantiate(&user.address, &package_addr);
-    withdraw(&user.address, &dao.address, &dao.external_admin_address, "15");
-    mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_adress, "5");
-    mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_adress, "5");
-    show(&user.address);
-    let lock_output = lock(&user.address, &dao.address, &dao.voter_card_address, &dao.styx_adress, "5");
-    println!("{}",lock_output);
-    show(&user.address);
-}
 
 
 
