@@ -1,15 +1,13 @@
-#
+# Votes for a proposal
 # Parameters:
 #
 # dao: address of the dao component
 #
-# account:  
-#  
-# delegate_to: 
+# account:  account voting
 #
-# voter_card
+# voter_card: votercard resource address
 #
-# vote
+# vote: Vote to cast
 #
 
 CALL_METHOD 

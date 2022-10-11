@@ -1,11 +1,12 @@
+# Unlocks all tokens form a VoterCard
 #
 # Parameters:
 #
 # dao: address of the dao component
 #
-# account: address of the user account that will lock tokens 
+# account: address of the user account that will unlock tokens
 #
-# voter_card : proof of VoterCard
+# voter_card : VoterCard resourceaddress
 #
 
 CALL_METHOD 
