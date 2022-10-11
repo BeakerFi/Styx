@@ -1,4 +1,4 @@
-# Emit a certain amount of token
+# Emits a certain amount of DAO tokens
 #
 # Parameters:
 #
@@ -7,7 +7,7 @@
 # account: address of the user account that has the external admin badge
 #          and will mint a certain amount of tokens in the dao
 #  
-# amount: number of supply to be emited
+# amount: number of supply to be emitted
 #
 # admin_badge : address of the external_admin_badge
 #

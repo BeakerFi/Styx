@@ -1,16 +1,16 @@
+# Delegates the voting power of a user for a given proposal
 #
 # Parameters:
 #
 # dao: address of the dao component
 #
-# voter_card
+# voter_card: address of the VoterCard resource
 #
-# account:  
+# account: address of the member calling the function
 #  
-# delegate_to: 
+# delegate_to: VoterCard id of the member to whom to delegate
 #
-# proposal_id : 
-#
+# proposal_id : if of the proposal for which to deldegate
 #
 
 CALL_METHOD 

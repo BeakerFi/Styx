@@ -1,11 +1,12 @@
+# Retrieves the assets that a member can take from the DAO
 #
 # Parameters:
 #
 # dao: address of the dao component
 #
-# account: address of the user account that will lock tokens 
+# account: address of the member that want to retrieve assets
 #
-# voter_card : proof of VoterCard
+# voter_card : address of the VoterCard resource
 #
 
 CALL_METHOD 

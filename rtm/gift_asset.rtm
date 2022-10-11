@@ -1,9 +1,10 @@
+# Gifts assets to the DAO
 #
 # Parameters:
 #
 # dao: address of the dao component
 #
-# account: address of the user account that will lock tokens 
+# account: address of the user account that wants to gift assets
 #
 # asset : the address of asset you want to gift
 #

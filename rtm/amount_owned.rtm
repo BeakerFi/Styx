@@ -1,3 +1,4 @@
+# Gets the amount of certain asset owned by the DAO
 #
 # Parameters:
 #
@@ -5,7 +6,7 @@
 #
 # account: address of the user account that will lock tokens 
 #  
-# asset:
+# asset: resource address of the asset to check
 #
 #
 
