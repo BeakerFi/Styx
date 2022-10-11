@@ -1,3 +1,25 @@
+//! NOTE these tests use a global resource (the resim exectuable's
+//! simulator) and therefore MUST be run single threaded, like this
+//! from the command line:
+//!
+//! cargo test -- --test-threads=1
+//!
+//! Also note that if you run the tests with increased output
+//! verbosity enabled you may see panics or stacktraces during a
+//! successful run. This is expected behaviour as we use
+//! std::panic::catch_unwind to test calls under conditions that
+//! should make them panic. One way to see a lot of this sort of
+//! output would be to run the tests like this (in a Unix-like shell):
+//! 
+//! RUST_BACKTRACE=1 cargo test -- --nocapture --test-threads=1
+
+use std::process::Command;
+use std::collections::HashSet;
+use std::collections::HashMap;
+use regex::Regex;
+use lazy_static::lazy_static;
+
+
 use radix_engine::ledger::*;
 use radix_engine::transaction::TransactionReceipt;
 use scrypto::core::NetworkDefinition;
@@ -5,8 +27,160 @@ use scrypto::prelude::*;
 use scrypto_unit::*;
 use transaction::builder::ManifestBuilder;
 
+const RADIX_TOKEN: &str = "030000000000000000000000000000000000000000000000000004";
+
+
+#[derive(Debug)]
+struct Account {
+    address: String,
+    _pubkey: String,
+    _privkey: String,
+}
+
+
+#[derive(Debug)]
+struct DAO_component {
+    address: String,
+    external_admin_address: String,
+    styx_adress: String,
+    voter_card_address: String,
+}
+
+
+
+/// Runs a command line program, panicking if it fails and returning
+/// its stdout if it succeeds
+fn run_command(command: &mut Command) -> String {
+    let output = command
+        .output()
+        .expect("Failed to run command line");
+    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+    if !output.status.success() {
+        println!("stdout:\n{}", stdout);
+        panic!("{}", stderr);
+    }
+    stdout
+}
+
+
+/// Calls "resim reset"
+fn reset_sim() {
+    run_command(Command::new("resim")
+        .arg("reset"));
+}
+
+
+
+/// Calls "resim new-account"
+///
+/// Returns a tuple containing first the new account's address, then
+/// its public key, and then last its private key.
+fn create_account() -> Account {
+    let output = run_command(Command::new("resim")
+                             .arg("new-account"));
+
+    lazy_static! {
+        static ref RE_ADDRESS: Regex = Regex::new(r"Account component address: (\w*)").unwrap();
+        static ref RE_PUBKEY:  Regex = Regex::new(r"Public key: (\w*)").unwrap();
+        static ref RE_PRIVKEY: Regex = Regex::new(r"Private key: (\w*)").unwrap();
+    }
+    
+    let address = &RE_ADDRESS.captures(&output).expect("Failed to parse new-account address")[1];
+    let pubkey = &RE_PUBKEY.captures(&output).expect("Failed to parse new-account pubkey")[1];
+    let privkey = &RE_PRIVKEY.captures(&output).expect("Failed to parse new-account privkey")[1];
+
+    Account {
+        address: address.to_string(),
+        _pubkey: pubkey.to_string(),
+        _privkey: privkey.to_string()
+    }
+}
+
+
+/// Publishes the package by calling "resim publish ."
+///
+/// Returns the new blueprint's address
+fn publish_package(path: Option<&str>) -> String {
+    let path = path.unwrap_or(".");
+    let output = run_command(Command::new("resim")
+                             .arg("publish")
+                             .arg(path));
+    lazy_static! {
+        static ref RE_ADDRESS: Regex = Regex::new(r"New Package: (\w*)").unwrap();
+    }
+    
+    RE_ADDRESS.captures(&output).expect("Failed to parse new blueprint address")[1].to_string()
+}
+
+
+
+
+/// Creates a new Participants catalog via
+/// rtm/participants/instantiate_participant_catalog.rtm
+///
+/// Returns the catalog created.
+fn instantiate(account_addr: &str, package_addr: &str)
+                                   -> DAO_component
+{
+    let output = run_command(Command::new("resim")
+                             .arg("run")
+                             .arg("src/rtm/instantiate.rtm")
+                             .env("account", account_addr)
+                             .env("package", &package_addr)
+                             .env("initial_supply", "100"));
+    lazy_static! {
+        static ref RE_TUPLE: Regex = Regex::new(concat!(
+            r#"Instruction Outputs:\n\W*"#,
+            r#".─ Tuple\(ComponentAddress\("(\w*)"\).*"#,
+            r#"ResourceAddress\("(\w*)"\).*"#,
+            r#"NonFungibleId\("(\w*)"\)"#)).unwrap();
+    }
+
+    // println!("{:?}",RE_TUPLE);
+
+    let matches = RE_TUPLE.captures(&output).expect(
+        "Failed to parse");
+
+
+
+    let dao = DAO_component {
+        address: matches[1].to_string(),
+        external_admin_address: matches[2].to_string(),
+        styx_adress: matches[3].to_string(),
+        voter_card_address: matches[4].to_string(),
+    };
+    println!("dao component : {:?}",dao);
+    dao
+}
+
+
+
+#[test]
+fn test_publish() {
+    reset_sim();
+    let user = create_account();
+    let package_addr = publish_package(Some("."));
+    println!("User Package : {:?}", package_addr);
+}
+
+
+
+#[test]
+fn test_instantiate() {
+    reset_sim();
+    let user = create_account();
+    let package_addr = publish_package(Some("."));
+    let dao = instantiate(&user.address, &package_addr);
+    println!("dao component : {:?}", dao);
+}
+
+
 #[test]
 fn test_hello() {
+    // ├─ CallMethod { component_address: system_sim1qsqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqs9fh54n, method_name: "lock_fee", args: Struct(Decimal("1000")) }
+
+
     // Setup the environment
     let mut store = TypedInMemorySubstateStore::with_bootstrap();
     let mut test_runner = TestRunner::new(true, &mut store);
@@ -19,7 +193,7 @@ fn test_hello() {
 
     // Test the `instantiate_hello` function.
     let manifest = ManifestBuilder::new(&NetworkDefinition::simulator())
-        .call_function(package_address, "Styx", "instantiate", args!())
+        .call_function(package_address, "Styx", "instantiate", args!(dec!("100")))
         .build();
     let receipt = test_runner.execute_manifest_ignoring_fee(manifest, vec![public_key.into()]);
     println!("{:?}\n", receipt);
