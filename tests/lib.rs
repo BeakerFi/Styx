@@ -26,6 +26,7 @@ use scrypto::core::NetworkDefinition;
 use scrypto::prelude::*;
 use scrypto_unit::*;
 use styx::styx_dao::Styx_impl;
+use styx::voter_card;
 use transaction::builder::ManifestBuilder;
 
 const RADIX_TOKEN: &str = "030000000000000000000000000000000000000000000000000004";
@@ -158,7 +159,7 @@ fn instantiate(account_addr: &str, package_addr: &str)
 
 
 
-    //println!("{}",output);
+    println!("{}",output);
 
     let result = output.split("\n").collect::<Vec<&str>>();
 
@@ -278,6 +279,19 @@ fn emit(account_addr: &str,dao_address : &str , external_badge_address : &str, a
 }
 
 
+fn lock(account_addr: &str,dao_address : &str , voter_card_address : &str, styx_address : &str, bucket_amount : &str) -> String {
+    let output = run_command(Command::new("resim")
+                             .arg("run")
+                             .arg("src/rtm/lock.rtm")
+                             .env("account", account_addr)
+                             .env("dao", &dao_address)
+                             .env("styx", styx_address)
+                             .env("voter_card", voter_card_address)
+                             .env("amount", bucket_amount));
+    output
+}
+
+
 #[test]
 fn test_publish() {
     reset_sim();
@@ -345,6 +359,37 @@ fn test_emit() {
     println!("{}",witdraw_output);
     show(&dao.address);
 }
+
+#[test]
+fn test_lock() {
+    reset_sim();
+    let user = create_account();
+    let package_addr = publish_package(Some("."));
+    let dao = instantiate(&user.address, &package_addr);
+    withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
+    mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_adress, "5");
+    show(&user.address);
+    let lock_output = lock(&user.address, &dao.address, &dao.voter_card_address, &dao.styx_adress, "5");
+    println!("{}",lock_output);
+    show(&user.address);
+}
+
+// double card lock
+#[test]
+fn test_lock_with_two_cards() {
+    reset_sim();
+    let user = create_account();
+    let package_addr = publish_package(Some("."));
+    let dao = instantiate(&user.address, &package_addr);
+    withdraw(&user.address, &dao.address, &dao.external_admin_address, "15");
+    mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_adress, "5");
+    mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_adress, "5");
+    show(&user.address);
+    let lock_output = lock(&user.address, &dao.address, &dao.voter_card_address, &dao.styx_adress, "5");
+    println!("{}",lock_output);
+    show(&user.address);
+}
+
 
 
 #[test]
