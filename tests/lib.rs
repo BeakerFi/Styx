@@ -440,6 +440,17 @@ fn claim_asset(account_addr: &str, dao_address : &str , voter_card_address : &st
     output
 }
 
+fn simple_transfer(account1_addr: &str, account2_addr: &str , asset_address : &str, amount : &str) -> String {
+    let output = run_command(Command::new("resim")
+                             .arg("run")
+                             .arg("src/rtm/simple_transfer.rtm")
+                             .env("account1", account1_addr)
+                             .env("account2", account2_addr)
+                             .env("asset", &asset_address)
+                             .env("amount", amount));
+    output
+}
+
 
 #[test]
 fn test_publish() {
@@ -525,6 +536,35 @@ fn test_lock() {
     println!("{}",lock_output);
     show(&user.address);
 }
+
+
+#[test]
+fn test_transferable_styx(){
+    reset_sim();
+    let user1 = create_account();
+    let user2 = create_account();
+    let package_addr = publish_package(Some("."));
+    let dao = instantiate(&user1.address, &package_addr);
+    withdraw(&user1.address, &dao.address, &dao.external_admin_address, "10");
+    let transfer_output = simple_transfer(&user1.address, &user2.address, &dao.styx_adress, "5");
+    println!("{}",transfer_output);
+}
+
+#[test]
+fn test_untransferable_voter_card(){
+    reset_sim();
+    let user1 = create_account();
+    let user2 = create_account();
+    let package_addr = publish_package(Some("."));
+    let dao = instantiate(&user1.address, &package_addr);
+    withdraw(&user1.address, &dao.address, &dao.external_admin_address, "10");
+    mint_voter_card_with_bucket(&user1.address, &dao.address, &dao.styx_adress, "5");
+    let transfer_output = simple_transfer(&user1.address, &user2.address, &dao.voter_card_address, "5");
+    println!("{}",transfer_output);
+}
+
+
+
 
 
 
