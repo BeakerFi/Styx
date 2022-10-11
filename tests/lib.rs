@@ -254,6 +254,19 @@ fn withdraw(account_addr: &str,dao_address : &str , external_badge_address : &st
 }
 
 
+fn emit(account_addr: &str,dao_address : &str , external_badge_address : &str, amount : &str) -> String {
+    let output = run_command(Command::new("resim")
+                             .arg("run")
+                             .arg("src/rtm/emit.rtm")
+                             .env("account", account_addr)
+                             .env("dao", &dao_address)
+                             .env("admin_badge", external_badge_address)
+                             .env("amount", amount));
+    output
+    //println!("{}", output);
+}
+
+
 #[test]
 fn test_publish() {
     reset_sim();
@@ -290,7 +303,8 @@ fn test_withdraw() {
     let user = create_account();
     let package_addr = publish_package(Some("."));
     let dao = instantiate(&user.address, &package_addr);
-    println!("{}",withdraw(&user.address, &dao.address, &dao.external_admin_address, "10"));
+    let witdraw_output = withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
+    println!("{}",witdraw_output);
 }
 
 #[test]
@@ -300,9 +314,20 @@ fn test_mint_voter_card() {
     let package_addr = publish_package(Some("."));
     let dao = instantiate(&user.address, &package_addr);
     withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
-    println!("{}",mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_adress, "5"));
+    let mint_ouput = mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_adress, "5");
+    println!("{}",mint_ouput);
 }
 
+
+#[test]
+fn test_emit() {
+    reset_sim();
+    let user = create_account();
+    let package_addr = publish_package(Some("."));
+    let dao = instantiate(&user.address, &package_addr);
+    let witdraw_output = withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
+    println!("{}",witdraw_output);
+}
 
 
 #[test]
