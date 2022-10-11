@@ -23,27 +23,31 @@ CALL_METHOD
     Decimal("${amount}")
     ResourceAddress("${styx}");
 
+CALL_METHOD
+    ComponentAddress("${account}")
+    "withdraw"
+    ResourceAddress("${voter_card}");
+
 TAKE_FROM_WORKTOP_BY_AMOUNT
     Decimal("${amount}")
     ResourceAddress("${styx}")
     Bucket("Styxs");
 
-CALL_METHOD
-    ComponentAddress("${account}")
-    "create_proof"
-    ResourceAddress("${voter_card}");
+TAKE_FROM_WORKTOP
+    ResourceAddress("${voter_card}")
+    Bucket("VoterCard");
 
-CREATE_PROOF_FROM_AUTH_ZONE 
-    ResourceAddress("${voter_card}") 
-    Proof("VoterCard");
+CREATE_PROOF_FROM_BUCKET
+    Bucket("VoterCard")
+    Proof("VoterCard Proof");
   
 CALL_METHOD
    ComponentAddress("${dao}")
    "lock"
-   Proof("VoterCard")
+   Proof("VoterCard Proof")
    Bucket("Styxs");
 
-CALL_METHOD
+CALL_METHOD 
     ComponentAddress("${account}") 
     "deposit_batch" 
     Expression("ENTIRE_WORKTOP");
