@@ -304,6 +304,17 @@ fn unlock(account_addr: &str, dao_address : &str , voter_card_address : &str, bu
 }
 
 
+fn unlock_all(account_addr: &str, dao_address : &str , voter_card_address : &str) -> String {
+    let output = run_command(Command::new("resim")
+                             .arg("run")
+                             .arg("src/rtm/unlock.rtm")
+                             .env("account", account_addr)
+                             .env("dao", &dao_address)
+                             .env("voter_card", voter_card_address));
+    output
+}
+
+
 #[test]
 fn test_publish() {
     reset_sim();

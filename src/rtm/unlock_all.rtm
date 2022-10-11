@@ -4,8 +4,6 @@
 # dao: address of the dao component
 #
 # account: address of the user account that will lock tokens 
-#  
-# amount: number of supply that will be locked
 #
 # voter_card : proof of VoterCard
 #
@@ -30,9 +28,8 @@ CREATE_PROOF_FROM_BUCKET
 
 CALL_METHOD
    ComponentAddress("${dao}")
-   "unlock"
-   Proof("VoterCard Proof")
-   Decimal("${amount}");
+   "unlock_all"
+   Proof("VoterCard Proof");
 
 CALL_METHOD 
     ComponentAddress("${account}") 
