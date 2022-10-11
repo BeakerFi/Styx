@@ -385,25 +385,26 @@ blueprint! {
         ///
         /// # Transaction Manifest
         ///
-        pub fn gift_asset(&mut self, mut asset: Bucket)
+        pub fn gift_asset(&mut self, asset: Bucket)
         {
-            if asset.resource_address() == self.styx_address
+            let asset_address = asset.resource_address();
+            if asset_address == self.styx_address
             {
-                self.styx_vault.put(asset.take(asset.amount()))
+                self.styx_vault.put(asset)
             }
             else
             {
-                match self.assets_under_management.get_mut(&asset.resource_address())
+                match self.assets_under_management.get_mut(&asset_address)
                 {
                     None =>
                         {
-                            let mut  vault= Vault::new(asset.resource_address());
-                            vault.put(asset.take(asset.amount()));
-                            self.assets_under_management.insert(asset.resource_address(), vault);
+                            let mut  vault = Vault::new(asset_address);
+                            vault.put(asset);
+                            self.assets_under_management.insert(asset_address, vault);
                         }
                     Some(vault) =>
                         {
-                            vault.put(asset.take(asset.amount()));
+                            vault.put(asset);
                         }
                 }
             }

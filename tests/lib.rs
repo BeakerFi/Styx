@@ -18,7 +18,7 @@ use regex::Regex;
 use lazy_static::lazy_static;
 use scrypto::prelude::*;
 
-const RADIX_TOKEN: &str = "030000000000000000000000000000000000000000000000000004";
+const RADIX_TOKEN: &str = "resource_sim1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqzqu57yag";
 
 
 #[derive(Debug)]
@@ -39,11 +39,9 @@ impl Account
         let mut lines = output.split("\n").collect::<Vec<&str>>();
         let mut found = false;
 
-        while !found
+        loop
         {
-            let new_line = lines.pop();
-
-            match new_line
+            match lines.pop()
             {
                 None => { break; }
                 Some(line) =>
@@ -56,7 +54,7 @@ impl Account
                         let amount = words.get(3);
                         match word_before
                         {
-                            None => {  }
+                            None => {}
                             Some(word) =>
                                 {
                                     if *word == "address:"
@@ -97,6 +95,52 @@ struct DAO_component {
     voter_card_address: String,
 }
 
+impl DAO_component
+{
+    pub fn get_amount_owned(&self, account_address: &str, resource_address: &str) -> Option<Decimal>
+    {
+        let output = amount_owned(account_address, &self.address, resource_address);
+        let mut lines = output.split("\n").collect::<Vec<&str>>();
+
+        loop
+        {
+            match lines.pop()
+            {
+                None => { break; }
+                Some(line) =>
+                    {
+                        // We are looking for a line of the form ├─ Decimal("90")
+                        let words = line.split(" ").collect::<Vec<&str>>();
+                        match words.get(1)
+                        {
+                            None => {}
+                            Some(word) =>
+                                {
+                                    // We split the word with "
+
+                                    let subwords = word.split("\"").collect::<Vec<&str>>();
+                                    let word_before = subwords.get(0);
+                                    let amount = subwords.get(1);
+
+                                    match word_before
+                                    {
+                                        None => {  }
+                                        Some(word2) =>
+                                            {
+                                                if *word2 == "Decimal("
+                                                {
+                                                    return Some(Decimal::from(*amount.unwrap()))
+                                                }
+                                            }
+                                    }
+                                }
+                        }
+                    }
+            }
+        }
+        None
+    }
+}
 
 
 
@@ -394,11 +438,9 @@ fn claim_asset(account_addr: &str, dao_address : &str , voter_card_address : &st
     output
 }
 
-
 #[test]
 fn test_publish() {
     reset_sim();
-    let user = create_account();
     let package_addr = publish_package(Some("."));
     println!("User Package : {:?}", package_addr);
 }
@@ -411,7 +453,8 @@ fn test_instantiate() {
     let user = create_account();
     let package_addr = publish_package(Some("."));
     let dao = instantiate(&user.address, &package_addr);
-    println!("dao component : {:#?}", dao);
+    let owned = dao.get_amount_owned(&user.address, &dao.styx_adress);
+    assert_eq!(owned.unwrap(), dec!(100));
 }
 
 #[test]
@@ -421,7 +464,8 @@ fn test_instantiate_custom() {
     let package_addr = publish_package(Some("."));
     let admin_badge_addr = create_admin_badge();
     let dao = instantiate_custom(&user.address, &package_addr, &admin_badge_addr );
-    println!("dao component : {:#?}", dao);
+    let owned = dao.get_amount_owned(&user.address, &dao.styx_adress);
+    assert_eq!(owned.unwrap(), dec!(100));
 }
 
 
@@ -433,8 +477,10 @@ fn test_withdraw()
     let package_addr = publish_package(Some("."));
     let dao = instantiate(&user.address, &package_addr);
     withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
-    let owned_stx = user.get_amount_owned(&dao.styx_adress).unwrap();
-    assert_eq!(owned_stx, dec!(10));
+    let user_owned_stx = user.get_amount_owned(&dao.styx_adress).unwrap();
+    assert_eq!(user_owned_stx, dec!(10));
+    let dao_owned = dao.get_amount_owned(&user.address, &dao.styx_adress);
+    assert_eq!(dao_owned.unwrap(), dec!(90));
 }
 
 #[test]
@@ -447,6 +493,7 @@ fn test_mint_voter_card()
     withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
     let mut owned_stx = user.get_amount_owned(&dao.styx_adress).unwrap();
     assert_eq!(owned_stx, dec!(10));
+
     mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_adress, "5");
     owned_stx =  user.get_amount_owned(&dao.styx_adress).unwrap();
     assert_eq!(owned_stx, dec!(5));
@@ -459,12 +506,20 @@ fn test_emit() {
     let user = create_account();
     let package_addr = publish_package(Some("."));
     let dao = instantiate(&user.address, &package_addr);
-    // Withdraw all tokens from vault
+
+    // Withdraw all tokens from styx vault
     withdraw(&user.address, &dao.address, &dao.external_admin_address, "100");
-    let mut owned_stx = user.get_amount_owned(&dao.styx_adress).unwrap();
+    let mut dao_styx = dao.get_amount_owned(&user.address, &dao.styx_adress).unwrap();
+    let owned_stx = user.get_amount_owned(&dao.styx_adress).unwrap();
+    assert_eq!(dao_styx, dec!(0));
     assert_eq!(owned_stx, dec!(100));
 
+    // Now emit new tokens
+    emit(&user.address, &dao.address, &dao.external_admin_address, "1000");
+    dao_styx = dao.get_amount_owned(&user.address, &dao.styx_adress).unwrap();
+    assert_eq!(dao_styx, dec!(1000));
 }
+
 
 #[test]
 fn test_lock() {
@@ -474,11 +529,34 @@ fn test_lock() {
     let dao = instantiate(&user.address, &package_addr);
     withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
     mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_adress, "5");
-    show(&user.address);
-    let lock_output = lock(&user.address, &dao.address, &dao.voter_card_address, &dao.styx_adress, "5");
-    println!("{}",lock_output);
-    show(&user.address);
+    lock(&user.address, &dao.address, &dao.voter_card_address, &dao.styx_adress, "5");
 }
+
+#[test]
+fn test_unlock() {
+    reset_sim();
+    let user = create_account();
+    let package_addr = publish_package(Some("."));
+    let dao = instantiate(&user.address, &package_addr);
+    withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
+    mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_adress, "5");
+    println!("{}", unlock(&user.address, &dao.address, &dao.voter_card_address, "3"));
+    let owned_stx = user.get_amount_owned(&dao.styx_adress).unwrap();
+    assert_eq!(owned_stx, dec!(6));
+}
+
+#[test]
+fn test_gift_asset()
+{
+    reset_sim();
+    let user = create_account();
+    let package_addr = publish_package(Some("."));
+    let dao = instantiate(&user.address, &package_addr);
+    let dao_rdx = dao.get_amount_owned(&user.address, RADIX_TOKEN).unwrap();
+    assert_eq!(dao_rdx, dec!(10));
+}
+
+
 
 
 

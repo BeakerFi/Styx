@@ -17,7 +17,7 @@ CALL_METHOD
 CALL_METHOD
    ComponentAddress("${dao}")
    "amount_owned"
-   "${asset}"
+   ResourceAddress("${asset}");
 
 CALL_METHOD 
     ComponentAddress("${account}") 
