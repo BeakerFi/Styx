@@ -223,18 +223,14 @@ blueprint! {
         pub fn lock(&mut self, voter_card_proof : Proof, deposit : Bucket)
         {
             assert_eq!(deposit.resource_address(), self.styx_address);
-
             let validated_proof = self.check_proof(voter_card_proof);
 
             let amount = deposit.amount();
-
-            // avoir accès à validated
             let mut voter_card : VoterCard = self.get_voter_card_data_from_proof(&validated_proof);
-
-
             voter_card.add_tokens(amount, Runtime::current_epoch());
-
             self.change_data(&validated_proof, voter_card);
+
+            self.styx_vault.put(deposit);
 
         }
         /// Unlocks the given amount of Styx tokens and updates the VoterCard associated with the proof
@@ -249,8 +245,6 @@ blueprint! {
         {
 
             let validated_proof = self.check_proof(proof);
-
-            // avoir accès à validated
             let mut voter_card : VoterCard = self.get_voter_card_data_from_proof(&validated_proof);
             assert!(voter_card.total_number_of_token >= amount);
 
@@ -431,11 +425,11 @@ blueprint! {
             }
             else
             {
-                            match self.assets_under_management.get(&asset_address)
-            {
-                None => Decimal::zero(),
-                Some(vault) => vault.amount()
-            }
+                match self.assets_under_management.get(&asset_address)
+                {
+                    None => Decimal::zero(),
+                    Some(vault) => vault.amount()
+                }
             }
         }
 

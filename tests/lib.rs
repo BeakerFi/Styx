@@ -14,20 +14,9 @@
 //! RUST_BACKTRACE=1 cargo test -- --nocapture --test-threads=1
 
 use std::process::Command;
-use std::collections::HashSet;
-use std::collections::HashMap;
 use regex::Regex;
 use lazy_static::lazy_static;
-
-
-use radix_engine::ledger::*;
-use radix_engine::transaction::TransactionReceipt;
-use scrypto::core::NetworkDefinition;
 use scrypto::prelude::*;
-use scrypto_unit::*;
-use styx::styx_dao::Styx_impl;
-use styx::voter_card;
-use transaction::builder::ManifestBuilder;
 
 const RADIX_TOKEN: &str = "030000000000000000000000000000000000000000000000000004";
 
@@ -39,6 +28,65 @@ struct Account {
     _privkey: String,
 }
 
+impl Account
+{
+    pub fn get_amount_owned(&self, resource_address: &str) -> Option<Decimal>
+    {
+        let output = run_command(Command::new("resim")
+            .arg("show")
+            .arg(&self.address));
+
+        let mut lines = output.split("\n").collect::<Vec<&str>>();
+        let mut found = false;
+
+        while !found
+        {
+            let new_line = lines.pop();
+
+            match new_line
+            {
+                None => { break; }
+                Some(line) =>
+                    {
+                        let words = line.split(" ").collect::<Vec<&str>>();
+                        // Resource line is og the form
+                        // ├─ { amount: 999.67126747, resource address: resource_sim1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqzqu57yag, name: "Radix", symbol: "XRD" }
+                        let word_before = words.get(5);
+                        let resource_address_2 = words.get(6);
+                        let amount = words.get(3);
+                        match word_before
+                        {
+                            None => {  }
+                            Some(word) =>
+                                {
+                                    if *word == "address:"
+                                    {
+                                        match resource_address_2
+                                        {
+                                            None => {}
+                                            Some(address) =>
+                                                {
+                                                    let address_without_comma = address.split(",").collect::<Vec<&str>>();
+                                                    let correct_address = address_without_comma.get(0).unwrap();
+                                                    if *correct_address == resource_address
+                                                    {
+                                                        let word = amount.unwrap().split(",").collect::<Vec<&str>>();
+                                                        let number = word.get(0).unwrap();
+                                                        return Some(Decimal::from(*number));
+                                                    }
+                                                }
+                                        }
+                                    }
+                                }
+                        }
+                    }
+            }
+        }
+
+        None
+    }
+}
+
 
 #[derive(Debug)]
 struct DAO_component {
@@ -48,6 +96,7 @@ struct DAO_component {
     styx_adress: String,
     voter_card_address: String,
 }
+
 
 
 
@@ -105,7 +154,7 @@ fn create_admin_badge() -> String {
     let output = run_command(Command::new("resim")
                             .arg("new-token-fixed")
                             .arg("--name")
-                            .arg("admin_bagde")
+                            .arg("admin_badge")
                             .arg("1")
                         );
 
@@ -113,13 +162,12 @@ fn create_admin_badge() -> String {
 
 }
 
-
 fn show(address: &str) {
 
     let output = run_command(Command::new("resim")
                             .arg("show")
                             .arg(address)
-                        ); 
+                        );
     println!("{}", output);
 }
 
@@ -326,11 +374,10 @@ fn gift_asset(account_addr: &str, dao_address : &str , amount : &str, asset_addr
     output
 }
 
-// Arthur : à parser pour retourner le bon amount
 fn amount_owned(account_addr: &str, dao_address : &str , asset_address : &str) -> String {
     let output = run_command(Command::new("resim")
                              .arg("run")
-                             .arg("src/rtm/amoun_owned.rtm")
+                             .arg("src/rtm/amount_owned.rtm")
                              .env("account", account_addr)
                              .env("dao", &dao_address)
                              .env("asset", asset_address));
@@ -379,28 +426,30 @@ fn test_instantiate_custom() {
 
 
 #[test]
-fn test_withdraw() {
-    reset_sim();
-    let user = create_account();
-    let package_addr = publish_package(Some("."));
-    let dao = instantiate(&user.address, &package_addr);
-    show(&user.address);
-    let witdraw_output = withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
-    println!("{}",witdraw_output);
-    show(&user.address);
-}
-
-#[test]
-fn test_mint_voter_card() {
+fn test_withdraw()
+{
     reset_sim();
     let user = create_account();
     let package_addr = publish_package(Some("."));
     let dao = instantiate(&user.address, &package_addr);
     withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
-    show(&user.address);
-    let mint_ouput = mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_adress, "5");
-    println!("{}",mint_ouput);
-    show(&user.address);
+    let owned_stx = user.get_amount_owned(&dao.styx_adress).unwrap();
+    assert_eq!(owned_stx, dec!(10));
+}
+
+#[test]
+fn test_mint_voter_card()
+{
+    reset_sim();
+    let user = create_account();
+    let package_addr = publish_package(Some("."));
+    let dao = instantiate(&user.address, &package_addr);
+    withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
+    let mut owned_stx = user.get_amount_owned(&dao.styx_adress).unwrap();
+    assert_eq!(owned_stx, dec!(10));
+    mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_adress, "5");
+    owned_stx =  user.get_amount_owned(&dao.styx_adress).unwrap();
+    assert_eq!(owned_stx, dec!(5));
 }
 
 
@@ -410,10 +459,11 @@ fn test_emit() {
     let user = create_account();
     let package_addr = publish_package(Some("."));
     let dao = instantiate(&user.address, &package_addr);
-    show(&dao.address);
-    let witdraw_output = withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
-    println!("{}",witdraw_output);
-    show(&dao.address);
+    // Withdraw all tokens from vault
+    withdraw(&user.address, &dao.address, &dao.external_admin_address, "100");
+    let mut owned_stx = user.get_amount_owned(&dao.styx_adress).unwrap();
+    assert_eq!(owned_stx, dec!(100));
+
 }
 
 #[test]
@@ -430,147 +480,5 @@ fn test_lock() {
     show(&user.address);
 }
 
-// double card lock
-#[test]
-fn test_lock_with_two_cards() {
-    reset_sim();
-    let user = create_account();
-    let package_addr = publish_package(Some("."));
-    let dao = instantiate(&user.address, &package_addr);
-    withdraw(&user.address, &dao.address, &dao.external_admin_address, "15");
-    mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_adress, "5");
-    mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_adress, "5");
-    show(&user.address);
-    let lock_output = lock(&user.address, &dao.address, &dao.voter_card_address, &dao.styx_adress, "5");
-    println!("{}",lock_output);
-    show(&user.address);
-}
 
 
-
-#[test]
-fn test_hello() {
-    // ├─ CallMethod { component_address: system_sim1qsqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqs9fh54n, method_name: "lock_fee", args: Struct(Decimal("1000")) }
-
-
-    // Setup the environment
-    let mut store = TypedInMemorySubstateStore::with_bootstrap();
-    let mut test_runner = TestRunner::new(true, &mut store);
-
-    // Create an account
-    let (public_key, _private_key, account_component) = test_runner.new_account();
-
-    // Publish package
-    let package_address = test_runner.compile_and_publish(this_package!());
-
-    // Test the `instantiate_hello` function.
-    let manifest = ManifestBuilder::new(&NetworkDefinition::simulator())
-        .call_function(package_address, "Styx", "instantiate", args!(dec!("100")))
-        .build();
-    let receipt = test_runner.execute_manifest_ignoring_fee(manifest, vec![public_key.into()]);
-    println!("{:?}\n", receipt);
-    receipt.expect_commit_success();
-    let component = receipt
-        .expect_commit()
-        .entity_changes
-        .new_component_addresses[0];
-
-    let stx = receipt
-        .expect_commit()
-        .entity_changes
-        .new_resource_addresses[1];
-
-
-    let nft = receipt
-        .expect_commit()
-        .entity_changes
-        .new_resource_addresses[0];
-
-    println!("The stx adress is {}",stx);
-
-    
-
-    
-
-    // Test the `free_token` method.
-    let manifest = ManifestBuilder::new(&NetworkDefinition::simulator())
-        .call_method(component, "free_token", args!())
-        .call_method(
-            account_component,
-            "deposit_batch",
-            args!(Expression::entire_worktop()),
-        )
-        .build();
-    let receipt = test_runner.execute_manifest_ignoring_fee(manifest, vec![public_key.into()]);
-    println!("{:?}\n", receipt);
-    receipt.expect_commit_success();
-
-    
-    // Test the `free_token` method.
-        let manifest = ManifestBuilder::new(&NetworkDefinition::simulator())
-        .call_method(component, "free_token", args!())
-        .call_method(
-            account_component,
-            "deposit_batch",
-            args!(Expression::entire_worktop()),
-        )
-        .build();
-    let receipt = test_runner.execute_manifest_ignoring_fee(manifest, vec![public_key.into()]);
-    println!("{:?}\n", receipt);
-    receipt.expect_commit_success();
-
-        // Test the `stake` method.
-        let manifest = ManifestBuilder::new(&NetworkDefinition::simulator())
-        .call_method(account_component, "withdraw_by_amount", args!(dec!("1"),stx))
-        .take_from_worktop_by_amount(dec!("1"), stx, |builder, bucket_id| {
-            builder.call_method(
-                component,
-                "stake",
-                args!(
-                    scrypto::resource::Bucket(bucket_id)
-                ),
-            )
-        })
-        .call_method(
-            account_component,
-            "deposit_batch",
-            args!(Expression::entire_worktop()),
-        )
-        .build();
-    let receipt : TransactionReceipt = test_runner.execute_manifest_ignoring_fee(manifest, vec![public_key.into()]);
-    println!("{:?}\n", receipt);
-
-           
-    receipt.expect_commit_success();
-
-    // Test the `stake then unstake` method.
-    let manifest = ManifestBuilder::new(&NetworkDefinition::simulator())
-        .call_method(account_component, "withdraw_by_amount", args!(dec!("1"),stx))
-        .take_from_worktop_by_amount(dec!("1"), stx, |builder, bucket_id| {
-            builder.call_method(
-                component,
-                "stake",
-                args!(
-                    scrypto::resource::Bucket(bucket_id)
-                ),
-            )
-        })
-
-        .take_from_worktop( nft, |builder, bucket_id| {
-            println!("{:?} \n\n\n\n\n\n\n\n\n\n\n",bucket_id);
-            builder.create_proof_from_bucket(
-                bucket_id,
-                | builder2, proof| {
-                    builder2.call_method(component, "unstake", args!(scrypto::resource::Proof(proof), dec!("1")))
-                })
-        })
-        
-        .call_method(
-            account_component,
-            "deposit_batch",
-            args!(Expression::entire_worktop()),
-        )
-        .build();
-    let receipt : TransactionReceipt = test_runner.execute_manifest_ignoring_fee(manifest, vec![public_key.into()]);
-    println!("{:?}\n", receipt);
-}
