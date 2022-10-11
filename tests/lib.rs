@@ -197,7 +197,7 @@ fn instantiate_custom(account_addr: &str, package_addr: &str, admin_badge_addr: 
 
 
 
-    println!("{}",output);
+    //println!("{}",output);
 
     let result = output.split("\n").collect::<Vec<&str>>();
 
@@ -240,6 +240,19 @@ fn mint_voter_card_with_bucket(account_addr: &str,dao_address : &str , styx_addr
 }
 
 
+fn withdraw(account_addr: &str,dao_address : &str , external_badge_address : &str, amount : &str) {
+    let output = run_command(Command::new("resim")
+                             .arg("run")
+                             .arg("src/rtm/withdraw.rtm")
+                             .env("account", account_addr)
+                             .env("dao", &dao_address)
+                             .env("admin_badge", external_badge_address)
+                             .env("amount", amount));
+
+    println!("{}", output);
+}
+
+
 #[test]
 fn test_publish() {
     reset_sim();
@@ -267,6 +280,16 @@ fn test_instantiate_custom() {
     let admin_badge_addr = create_admin_badge();
     let dao = instantiate_custom(&user.address, &package_addr, &admin_badge_addr );
     println!("dao component : {:#?}", dao);
+}
+
+
+#[test]
+fn test_withdraw() {
+    reset_sim();
+    let user = create_account();
+    let package_addr = publish_package(Some("."));
+    let dao = instantiate(&user.address, &package_addr);
+    withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
 }
 
 

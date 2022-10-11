@@ -1,0 +1,43 @@
+# Instantiates a new Radfolio.
+#
+# Parameters:
+#
+# dao: address of the dao component
+#
+# account: address of the user account that has the external admin badge
+#          and will witdraw a certain amount of tokens from the dao
+#  
+# amount: number of supply to be withdrawed
+#
+# admin_badge : address of the external_admin_badge
+#
+
+CALL_METHOD 
+    ComponentAddress("${account}") 
+    "lock_fee" 
+    Decimal("100");
+
+CALL_METHOD
+    ComponentAddress("${account}")
+    "withdraw"
+    ResourceAddress("${admin_badge}");
+
+
+TAKE_FROM_WORKTOP
+    ResourceAddress("${admin_badge}")
+    Bucket("Admin Badge");
+
+
+CREATE_PROOF_FROM_BUCKET 
+    Bucket("Admin Badge") 
+    Proof("Admin");
+  
+CALL_METHOD
+   ComponentAddress("${dao}")
+   "withdraw"
+   Decimal("${amount}");
+
+CALL_METHOD 
+    ComponentAddress("${account}") 
+    "deposit_batch" 
+    Expression("ENTIRE_WORKTOP");
