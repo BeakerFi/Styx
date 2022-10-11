@@ -11,10 +11,6 @@ use crate::decimal_maths::{cbrt, ln};
 use crate::proposal::{Proposal, ProposalStatus, Vote, Change};
 use crate::voter_card::VoterCard;
 
-// Suggestion: before a proposal, duration: 1 week ~ 168 epoch ( 1 epoch ~ 1h)
-// EPOCH cooldown : 3 months ~ 2016 epochs
-// UK: 100k signatures = parliament vote; nb_citizens: 65kk : 0.15% for a proposal to reach a vote
-
 /// A BallotBox is simply a list of proposals and some voting parameters that can be changed by voting
 /// In the future, the voting_power function that computes the voting power associated to a bunch of
 /// tokens, will also be a parameter that can be changed. Unfortunately, Scrypto doesnt not enable us
@@ -43,7 +39,6 @@ pub struct BallotBox
 
 impl BallotBox
 {
-
     /// Instantiates a new BallotBox
     ///
     ///  # Examples
