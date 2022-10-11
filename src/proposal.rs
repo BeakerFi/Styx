@@ -41,6 +41,9 @@ pub enum Change
     /// Changes the suggestion approval threshold of proposals
     ChangeSuggestionApprovalThreshold(Decimal),
 
+    /// Changes the minimum amount of votes that have to be casted to consider a vote valid
+    ChangeMinimumVoteThreshold(Decimal),
+
     /// Allows claiming of a certain amount of resource by a voter id
     AllowSpending(ResourceAddress, Decimal, u64),
 

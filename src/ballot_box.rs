@@ -394,6 +394,10 @@ impl BallotBox
                     {
                         self.suggestion_approval_threshold = *threshold;
                     }
+                Change::ChangeMinimumVoteThreshold(threshold) =>
+                    {
+                        self.minimum_votes_threshold = *threshold;
+                    }
                 Change::AllowSpending(address, amount, to) =>
                     {
                         changes_to_return.push(Change::AllowSpending(address.clone(), amount.clone(), *to));
