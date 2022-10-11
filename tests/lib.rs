@@ -366,7 +366,7 @@ fn unlock_all(account_addr: &str, dao_address : &str , voter_card_address : &str
 fn support_proposal(account_addr: &str, dao_address : &str , voter_card_address : &str, proposal_id : &str) -> String {
     let output = run_command(Command::new("resim")
                              .arg("run")
-                             .arg("src/rtm/unlock_all.rtm")
+                             .arg("src/rtm/support_proposal.rtm")
                              .env("account", account_addr)
                              .env("dao", &dao_address)
                              .env("voter_card", voter_card_address)
@@ -377,10 +377,22 @@ fn support_proposal(account_addr: &str, dao_address : &str , voter_card_address 
 fn advance_with_proposal(account_addr: &str, dao_address : &str , proposal_id : &str) -> String {
     let output = run_command(Command::new("resim")
                              .arg("run")
-                             .arg("src/rtm/unlock_all.rtm")
+                             .arg("src/rtm/advance_with_proposal.rtm")
                              .env("account", account_addr)
                              .env("dao", &dao_address)
                              .env("proposal_id", proposal_id));
+    output
+}
+
+fn delegate_for_proposal(account_addr: &str, dao_address : &str, voter_card_address : &str , proposal_id : &str, deleguate_to : &str) -> String {
+    let output = run_command(Command::new("resim")
+                             .arg("run")
+                             .arg("src/rtm/delegate_for_proposal.rtm")
+                             .env("account", account_addr)
+                             .env("dao", &dao_address)
+                             .env("voter_card", voter_card_address)
+                             .env("proposal_id", proposal_id)
+                             .env("deleguate_to", deleguate_to));
     output
 }
 
