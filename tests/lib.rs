@@ -1,3 +1,25 @@
+//! NOTE these tests use a global resource (the resim exectuable's
+//! simulator) and therefore MUST be run single threaded, like this
+//! from the command line:
+//!
+//! cargo test -- --test-threads=1
+//!
+//! Also note that if you run the tests with increased output
+//! verbosity enabled you may see panics or stacktraces during a
+//! successful run. This is expected behaviour as we use
+//! std::panic::catch_unwind to test calls under conditions that
+//! should make them panic. One way to see a lot of this sort of
+//! output would be to run the tests like this (in a Unix-like shell):
+//!
+//! RUST_BACKTRACE=1 cargo test -- --nocapture --test-threads=1
+
+use std::process::Command;
+use std::collections::HashSet;
+use std::collections::HashMap;
+use regex::Regex;
+use lazy_static::lazy_static;
+
+
 use radix_engine::ledger::*;
 use radix_engine::transaction::TransactionReceipt;
 use scrypto::core::NetworkDefinition;

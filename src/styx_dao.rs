@@ -122,7 +122,7 @@ blueprint! {
                 .no_initial_supply();
 
 
-            let mut dao: StyxComponent = Self {
+            let mut dao = Self {
                 styx_vault: Vault::with_bucket(styx_bucket),
                 internal_authority: Vault::with_bucket(internal_admin),
                 voter_card_address : voter_card_address,
@@ -132,7 +132,7 @@ blueprint! {
                 new_voter_card_id: 0,
                 emitted_tokens: initial_supply,
                 assets_under_management: HashMap::new(),
-                claimable_tokens: HashMap::new()
+                claimable_assets: HashMap::new()
             };
 
 
