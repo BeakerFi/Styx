@@ -1,7 +1,14 @@
+//! We define here what is a BallotBox, which enables users to make Proposals to the DAO.
+//! All the functions here will be called by the Styx blueprint
+//!
+//! Note: we made the choice to pass the `current_epoch` as an argument of the functions instead of
+//! calling `Runtime::current_epoch` to be able to unit test the file without using blueprints
+
 use std::collections::HashMap;
 use scrypto::dec;
 use scrypto::math::Decimal;
-use crate::proposals::{Proposal, ProposalStatus, Vote, Change};
+use crate::decimal_maths::{cbrt, ln};
+use crate::proposal::{Proposal, ProposalStatus, Vote, Change};
 use crate::voter_card::VoterCard;
 
 // Suggestion: before a proposal, duration: 1 week ~ 168 epoch ( 1 epoch ~ 1h)
@@ -10,7 +17,7 @@ use crate::voter_card::VoterCard;
 
 /// A BallotBox is simply a list of proposals and some voting parameters that can be changed by voting
 /// In the future, the voting_power function that computes the voting power associated to a bunch of
-/// tokens, will also be a parameter that can be changed. Unfortunately, Scrypto doesn not enable us
+/// tokens, will also be a parameter that can be changed. Unfortunately, Scrypto doesnt not enable us
 /// to use closures in blueprints yet.
 #[derive(sbor::TypeId, sbor::Encode, sbor::Decode, sbor::Describe, Clone)]
 pub struct BallotBox
@@ -37,7 +44,14 @@ pub struct BallotBox
 impl BallotBox
 {
 
-    /// Instantiates a new BallotBox with our choice of parameters
+    /// Instantiates a new BallotBox
+    ///
+    ///  # Examples
+    ///
+    /// ```
+    /// use styx::ballot_box::BallotBox;
+    /// let ballot_box = BallotBox::new();
+    /// ```
     pub fn new() -> BallotBox
     {
 
@@ -54,7 +68,26 @@ impl BallotBox
     }
 
     /// Creates a new proposal from the given parameters
-    pub fn make_proposal(&mut self, description: String, suggested_changes: Vec<Change>, current_epoch: u64)
+    ///
+    /// # Arguments
+    /// * `description` - String describing the Proposal
+    /// * `suggested_changes` - changes that will be made to the DAO with this proposal
+    /// * `current_epoch` - current epoch
+    ///
+    /// # Examples
+    /// ```
+    /// use radix_engine::ledger::TypedInMemorySubstateStore;
+    /// use styx::ballot_box::BallotBox;
+    /// use styx::proposal::Change;
+    /// use scrypto::prelude::dec;
+    /// use scrypto_unit::TestRunner;
+    ///
+    /// let mut ballet_box = BallotBox::new();
+    /// let mut store = TypedInMemorySubstateStore::with_bootstrap();
+    /// let mut test_runner = TestRunner::new(true, &mut store);
+    /// ballet_box.make_proposal(String::from("An example Proposal"), vec![Change::AllowMinting(dec!(5))], test_runner.get_current_epoch(), dec!(1));
+    /// ```
+    pub fn make_proposal(&mut self, description: String, suggested_changes: Vec<Change>, current_epoch: u64, total_emitted_tokens: Decimal)
     {
        let proposal = Proposal
        {
@@ -68,7 +101,8 @@ impl BallotBox
            blank_votes: Decimal::zero(),
            delegated_votes: HashMap::new(),
            delegation_to: HashMap::new(),
-           epoch_expiration: current_epoch + self.support_period
+           epoch_expiration: current_epoch + self.support_period,
+           total_emitted_tokens: total_emitted_tokens
        };
 
         self.new_proposal_id += 1;
@@ -76,6 +110,29 @@ impl BallotBox
     }
 
     /// Enables a voter to support a proposal with its voter card
+    ///
+    /// # Arguments
+    /// * `proposal_id` - id of the Proposal to support
+    /// * `voter_card` - VoterCard of the user supporting the Proposal
+    /// * `current_epoch` - current epoch
+    ///
+    /// # Examples
+    /// ```
+    /// use radix_engine::ledger::TypedInMemorySubstateStore;
+    /// use styx::ballot_box::BallotBox;
+    /// use styx::proposal::Change;
+    /// use scrypto::prelude::dec;
+    /// use scrypto_unit::TestRunner;
+    /// use styx::voter_card::VoterCard;
+    ///
+    /// let mut ballet_box = BallotBox::new();
+    /// let mut store = TypedInMemorySubstateStore::with_bootstrap();
+    /// let mut test_runner = TestRunner::new(true, &mut store);
+    /// let mut voter_card = VoterCard::new(0);
+    ///
+    /// ballet_box.make_proposal(String::from("An example Proposal"), vec![Change::AllowMinting(dec!(5))], test_runner.get_current_epoch(), dec!(1));
+    /// ballet_box.support_proposal(0, &mut voter_card, test_runner.get_current_epoch());
+    /// ```
     pub fn support_proposal(&mut self, proposal_id: usize, voter_card: &mut VoterCard, current_epoch: u64)
     {
         assert!(proposal_id < self.new_proposal_id, "This proposal does not exist!");
@@ -95,7 +152,33 @@ impl BallotBox
     }
 
     /// Makes a proposal advance to its next phase if possible
-    pub fn advance_with_proposal(&mut self, proposal_id: usize, total_tokens: Decimal, current_epoch: u64)
+    ///
+    /// # Arguments
+    /// * `proposal_id` - id of the Proposal to try to make advance
+    /// * `current_epoch` - current epoch
+    ///
+    /// # Examples
+    /// ```
+    /// use radix_engine::ledger::TypedInMemorySubstateStore;
+    /// use styx::ballot_box::BallotBox;
+    /// use styx::proposal::Change;
+    /// use scrypto::prelude::dec;
+    /// use scrypto_unit::TestRunner;
+    /// use styx::voter_card::VoterCard;
+    ///
+    /// let mut ballet_box = BallotBox::new();
+    /// let mut store = TypedInMemorySubstateStore::with_bootstrap();
+    /// let mut test_runner = TestRunner::new(true, &mut store);
+    /// let mut voter_card = VoterCard::new(0);
+    ///
+    /// ballet_box.make_proposal(String::from("An example Proposal"), vec![Change::AllowMinting(dec!(5))], test_runner.get_current_epoch(), dec!(1));
+    /// // Make the time forward so that the proposal can advance to voting phase
+    /// let current_epoch = test_runner.get_current_epoch();
+    /// test_runner.set_current_epoch(current_epoch + 168 +1 );
+    /// // Now the proposal can advance forward
+    /// ballet_box.advance_with_proposal(0, test_runner.get_current_epoch());
+    /// ```
+    pub fn advance_with_proposal(&mut self, proposal_id: usize, current_epoch: u64)
         -> Option<Vec<Change>>
     {
         assert!(proposal_id < self.new_proposal_id, "This proposal does not exist!");
@@ -108,7 +191,7 @@ impl BallotBox
         {
             ProposalStatus::SuggestionPhase =>
                 {
-                    if proposal.supporting_votes / total_tokens > self.suggestion_approval_threshold
+                    if proposal.supporting_votes / proposal.total_emitted_tokens >= self.suggestion_approval_threshold
                     {
                         proposal.status = ProposalStatus::VotingPhase;
                         proposal.epoch_expiration = current_epoch + self.vote_period;
@@ -123,7 +206,7 @@ impl BallotBox
             ProposalStatus::VotingPhase =>
                 {
 
-                    if proposal.voted_for + proposal.voted_against > self.minimum_votes_threshold
+                    if proposal.voted_for + proposal.voted_against >= self.minimum_votes_threshold
                     {
                         if proposal.voted_for >= proposal.voted_against
                         {
@@ -147,7 +230,43 @@ impl BallotBox
         }
     }
 
-    /// Enables a voter to delegate its token to another voter for the given proposal
+    /// Enables a voter to delegate its token to another voter for a given proposal
+    ///
+    /// # Arguments
+    /// * `proposal_id` - id of the Proposal to for which to delegate its tokens
+    /// * `delegate_to` - VoterCard's id of the user to delegate its tokens to
+    /// * `voter_card` - VoterCard of the user delegating
+    /// * `current_epoch` - current epoch
+    ///
+    /// # Examples
+    /// ```
+    /// use radix_engine::ledger::TypedInMemorySubstateStore;
+    /// use styx::ballot_box::BallotBox;
+    /// use styx::proposal::Change;
+    /// use scrypto::prelude::dec;
+    /// use scrypto_unit::TestRunner;
+    /// use styx::voter_card::VoterCard;
+    ///
+    ///let mut ballet_box = BallotBox::new();
+    ///let mut store = TypedInMemorySubstateStore::with_bootstrap();
+    ///let mut test_runner = TestRunner::new(true, &mut store);
+    ///let mut voter_card = VoterCard::new(0);
+    /// // Add voter id as possible delegatee
+    ///voter_card.add_delegatee(1, test_runner.get_current_epoch());
+    ///voter_card.add_tokens(dec!(100), test_runner.get_current_epoch());
+    ///let current_epoch = test_runner.get_current_epoch();
+    /// // Advance time to make the tokens worth something
+    ///test_runner.set_current_epoch(current_epoch + 2016 );
+    ///
+    /// ballet_box.make_proposal(String::from("An example Proposal"), vec![Change::AllowMinting(dec!(5))], test_runner.get_current_epoch(), dec!(100));
+    /// ballet_box.support_proposal(0, &mut voter_card, test_runner.get_current_epoch());
+    /// // Advance time to end of vote
+    /// let current_epoch = test_runner.get_current_epoch();
+    /// test_runner.set_current_epoch(current_epoch + 170 );
+    /// // Now the proposal can advance forward
+    /// ballet_box.advance_with_proposal(0, test_runner.get_current_epoch());
+    /// ballet_box.delegate_for_proposal(0, 1, &mut voter_card, test_runner.get_current_epoch());
+    /// ```
     pub fn delegate_for_proposal(&mut self, proposal_id: usize, delegate_to: u64, voter_card: &mut VoterCard, current_epoch: u64)
     {
         assert!(proposal_id < self.new_proposal_id, "This proposal does not exist!");
@@ -177,6 +296,42 @@ impl BallotBox
 
     /// Enables a voter to vote for a specific proposal using its own tokens and the tokens of people
     /// who delegated to them.
+    ///
+    /// # Arguments
+    /// * `proposal_id` - id of the Proposal for which to vote
+    /// * `voter_card` - VoterCard of the user delegating
+    /// * `vote` - Vote to cast
+    /// * `current_epoch` - current epoch
+    ///
+    /// # Examples
+    /// ```
+    /// use radix_engine::ledger::TypedInMemorySubstateStore;
+    /// use styx::ballot_box::BallotBox;
+    /// use styx::proposal::{Change, Vote};
+    /// use scrypto::prelude::dec;
+    /// use scrypto_unit::TestRunner;
+    /// use styx::voter_card::VoterCard;
+    ///
+    /// let mut ballet_box = BallotBox::new();
+    /// let mut store = TypedInMemorySubstateStore::with_bootstrap();
+    /// let mut test_runner = TestRunner::new(true, &mut store);
+    /// let mut voter_card = VoterCard::new(0);
+    /// // Add voter id as possible delegatee
+    /// voter_card.add_delegatee(1, test_runner.get_current_epoch());
+    /// voter_card.add_tokens(dec!(100), test_runner.get_current_epoch());
+    /// let current_epoch = test_runner.get_current_epoch();
+    /// // Advance time to make the tokens worth something
+    /// test_runner.set_current_epoch(current_epoch + 2016 );
+    ///
+    /// ballet_box.make_proposal(String::from("An example Proposal"), vec![Change::AllowMinting(dec!(5))], test_runner.get_current_epoch(), dec!(100));
+    /// ballet_box.support_proposal(0, &mut voter_card, test_runner.get_current_epoch());
+    /// // Advance time to end of vote
+    /// let current_epoch = test_runner.get_current_epoch();
+    /// test_runner.set_current_epoch(current_epoch + 170 );
+    /// // Now the proposal can advance forward
+    /// ballet_box.advance_with_proposal(0, test_runner.get_current_epoch());
+    /// ballet_box.vote_for_proposal(0,&mut voter_card, Vote::For, test_runner.get_current_epoch());
+    /// ```
     pub fn vote_for_proposal(&mut self, proposal_id: usize, voter_card: &mut VoterCard, vote: Vote, current_epoch: u64)
     {
         assert!(proposal_id < self.new_proposal_id, "This proposal does not exist!");
@@ -203,15 +358,23 @@ impl BallotBox
                     *deleg_votes = dec!(0);
                 }
         }
+
+        let true_amount_of_votes = Self::power_control_function(total_voting_power, proposal.total_emitted_tokens);
         match vote
         {
-            Vote::For => { proposal.voted_for = proposal.voted_for + total_voting_power; }
-            Vote::Against => { proposal.voted_against = proposal.voted_against + total_voting_power; }
-            Vote::Blank => { proposal.blank_votes = proposal.blank_votes; }
+            Vote::For => { proposal.voted_for = proposal.voted_for + true_amount_of_votes; }
+            Vote::Against => { proposal.voted_against = proposal.voted_against + true_amount_of_votes; }
+            Vote::Blank => { proposal.blank_votes = proposal.blank_votes + true_amount_of_votes; }
         }
     }
 
-    /// Executes a proposal if it was accepted
+    /// Internal function that executes a given list of changes and returns
+    ///
+    /// # Arguments
+    /// * `proposal_id` - id of the Proposal for which to vote
+    /// * `voter_card` - VoterCard of the user delegating
+    /// * `vote` - Vote to cast
+    /// * `current_epoch` - current epoch
     fn execute_proposal(&mut self, changes_to_do: &Vec<Change>) -> Option<Vec<Change>>
     {
         let mut changes_to_return = vec![];
@@ -231,9 +394,17 @@ impl BallotBox
                     {
                         self.suggestion_approval_threshold = *threshold;
                     }
+                Change::ChangeMinimumVoteThreshold(threshold) =>
+                    {
+                        self.minimum_votes_threshold = *threshold;
+                    }
                 Change::AllowSpending(address, amount, to) =>
                     {
                         changes_to_return.push(Change::AllowSpending(address.clone(), amount.clone(), *to));
+                    }
+                Change::AllowMinting(amount)=>
+                    {
+                        changes_to_return.push(Change::AllowMinting(amount.clone()));
                     }
             }
         }
@@ -249,19 +420,36 @@ impl BallotBox
 
     }
 
+    /// Internal functions that corrects a user votes to make sure that they don't become too
+    /// powerful
+    ///
+    fn power_control_function(votes: Decimal, total_amount_of_tokens: Decimal) -> Decimal
+    {
+        let cap = cbrt(ln(total_amount_of_tokens));
+
+        let mut corrected_votes = cap.min(votes);
+
+        let additional_votes = votes - corrected_votes;
+        if additional_votes > Decimal::zero()
+        {
+            // Add 1 to make sure that it is > 0
+            corrected_votes = corrected_votes +  cbrt(ln( additional_votes + 1));
+        }
+        corrected_votes
+    }
+
 }
 
 #[cfg(test)]
 mod tests
 {
-    use std::thread::current;
     use radix_engine::ledger::TypedInMemorySubstateStore;
     use scrypto::core::Runtime;
     use scrypto::dec;
     use scrypto::math::Decimal;
     use scrypto_unit::TestRunner;
     use crate::ballot_box::BallotBox;
-    use crate::proposals::{ProposalStatus, Vote, Change};
+    use crate::proposal::{ProposalStatus, Vote, Change};
     use crate::voter_card::VoterCard;
 
     #[test]
@@ -276,6 +464,7 @@ mod tests
             description.clone(),
             vec![Change::ChangeVotePeriod(0)],
             test_runner.get_current_epoch(),
+            dec!(10)
         );
 
         let proposal = ballot_box.proposals.get(0).unwrap();
@@ -298,7 +487,8 @@ mod tests
         ballot_box.make_proposal(
             description,
             vec![Change::ChangeVotePeriod(0)],
-            test_runner.get_current_epoch()
+            test_runner.get_current_epoch(),
+            dec!(10)
         );
 
         let mut voting_card = VoterCard::new(0);
@@ -323,7 +513,7 @@ mod tests
             description,
             vec![Change::ChangeVotePeriod(0)],
             test_runner.get_current_epoch(),
-
+            dec!(10)
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
 
@@ -346,7 +536,8 @@ mod tests
         ballot_box.make_proposal(
             description,
             vec![Change::ChangeVotePeriod(0)],
-            test_runner.get_current_epoch()
+            test_runner.get_current_epoch(),
+            dec!(100)
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.supporting_votes = dec!(100);
@@ -355,7 +546,7 @@ mod tests
         let new_epoch = current + ballot_box.support_period +1;
         test_runner.set_current_epoch(new_epoch);
 
-        ballot_box.advance_with_proposal(0, dec!(100), test_runner.get_current_epoch());
+        ballot_box.advance_with_proposal(0,test_runner.get_current_epoch());
 
         let updated_proposal = ballot_box.proposals.get_mut(0).unwrap();
         assert!(updated_proposal.status.is_voting_phase());
@@ -374,10 +565,11 @@ mod tests
         ballot_box.make_proposal(
             description,
             vec![Change::ChangeVotePeriod(0)],
-            test_runner.get_current_epoch()
+            test_runner.get_current_epoch(),
+            dec!(10)
         );
-        let proposal = ballot_box.proposals.get(0).unwrap();
-        ballot_box.advance_with_proposal(0, dec!(100), test_runner.get_current_epoch());
+
+        ballot_box.advance_with_proposal(0, test_runner.get_current_epoch());
     }
 
     #[test]
@@ -391,7 +583,8 @@ mod tests
         ballot_box.make_proposal(
             description,
             vec![Change::ChangeVotePeriod(0)],
-            test_runner.get_current_epoch()
+            test_runner.get_current_epoch(),
+            dec!(100000)
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.supporting_votes = dec!(100);
@@ -400,7 +593,7 @@ mod tests
         let new_epoch = current + ballot_box.support_period +1;
         test_runner.set_current_epoch(new_epoch);
 
-        ballot_box.advance_with_proposal(0, dec!(100000), test_runner.get_current_epoch());
+        ballot_box.advance_with_proposal(0, test_runner.get_current_epoch());
 
         let updated_proposal = ballot_box.proposals.get(0).unwrap();
         assert!(updated_proposal.status.is_suggestion_rejected());
@@ -417,7 +610,8 @@ mod tests
         ballot_box.make_proposal(
             description,
             vec![Change::ChangeVotePeriod(0)],
-            test_runner.get_current_epoch()
+            test_runner.get_current_epoch(),
+            dec!(10)
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
@@ -427,7 +621,7 @@ mod tests
         let new_epoch = current + ballot_box.vote_period +1;
         test_runner.set_current_epoch(new_epoch);
 
-        ballot_box.advance_with_proposal(0, dec!(10), test_runner.get_current_epoch());
+        ballot_box.advance_with_proposal(0,test_runner.get_current_epoch());
 
         let updated_proposal = ballot_box.proposals.get(0).unwrap();
         assert!(updated_proposal.status.is_proposal_accepted());
@@ -444,7 +638,8 @@ mod tests
         ballot_box.make_proposal(
             description,
             vec![Change::ChangeVotePeriod(0)],
-            test_runner.get_current_epoch()
+            test_runner.get_current_epoch(),
+            dec!(10)
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
@@ -454,7 +649,7 @@ mod tests
         let new_epoch = current + ballot_box.vote_period +1;
         test_runner.set_current_epoch(new_epoch);
 
-        ballot_box.advance_with_proposal(0, dec!(10), test_runner.get_current_epoch());
+        ballot_box.advance_with_proposal(0,test_runner.get_current_epoch());
 
         let updated_proposal = ballot_box.proposals.get(0).unwrap();
         assert!(updated_proposal.status.is_proposal_rejected());
@@ -471,7 +666,8 @@ mod tests
         ballot_box.make_proposal(
             description,
             vec![Change::ChangeVotePeriod(0)],
-            test_runner.get_current_epoch()
+            test_runner.get_current_epoch(),
+            dec!(10)
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
@@ -497,7 +693,8 @@ mod tests
         ballot_box.make_proposal(
             description,
             vec![Change::ChangeVotePeriod(0)],
-            test_runner.get_current_epoch()
+            test_runner.get_current_epoch(),
+            dec!(10)
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
@@ -519,7 +716,8 @@ mod tests
         ballot_box.make_proposal(
             description,
             vec![Change::ChangeVotePeriod(0)],
-            test_runner.get_current_epoch()
+            test_runner.get_current_epoch(),
+            dec!(10)
         );
         let mut voting_card = VoterCard::new(0);
         voting_card.add_tokens(dec!(1000), test_runner.get_current_epoch());
@@ -540,7 +738,8 @@ mod tests
         ballot_box.make_proposal(
             description,
             vec![Change::ChangeVotePeriod(0)],
-            test_runner.get_current_epoch()
+            test_runner.get_current_epoch(),
+            dec!(10)
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
@@ -565,7 +764,8 @@ mod tests
         ballot_box.make_proposal(
             description,
             vec![Change::ChangeVotePeriod(0)],
-            test_runner.get_current_epoch()
+            test_runner.get_current_epoch(),
+            dec!(10)
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
@@ -593,7 +793,8 @@ mod tests
         ballot_box.make_proposal(
             description,
             vec![Change::ChangeVotePeriod(0)],
-            test_runner.get_current_epoch()
+            test_runner.get_current_epoch(),
+            dec!(10)
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
@@ -625,7 +826,8 @@ mod tests
         ballot_box.make_proposal(
             description,
             vec![Change::ChangeVotePeriod(0)],
-            test_runner.get_current_epoch()
+            test_runner.get_current_epoch(),
+            dec!(10)
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
@@ -633,7 +835,7 @@ mod tests
         ballot_box.vote_for_proposal(0, &mut voting_card, Vote::For, test_runner.get_current_epoch());
 
         let updated_proposal = ballot_box.proposals.get(0).unwrap();
-        assert!(updated_proposal.voted_for > dec!("1.74"));
+        assert!(updated_proposal.voted_for > dec!("1.3"));
     }
 
     #[test]
@@ -659,17 +861,17 @@ mod tests
         ballot_box.make_proposal(
             description,
             vec![Change::ChangeVotePeriod(0)],
-            test_runner.get_current_epoch()
+            test_runner.get_current_epoch(),
+            dec!(10)
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
 
         ballot_box.delegate_for_proposal(0, 1, &mut voting_card_1, test_runner.get_current_epoch());
-        let updated_proposal = ballot_box.proposals.get(0).unwrap();
         ballot_box.vote_for_proposal(0, &mut voting_card_2, Vote::For, test_runner.get_current_epoch());
 
         let updated_proposal = ballot_box.proposals.get(0).unwrap();
-        assert!(updated_proposal.voted_for > dec!("1.5"));
+        assert!(updated_proposal.voted_for > dec!("0.6"));
     }
 
     #[test]
@@ -694,7 +896,8 @@ mod tests
         ballot_box.make_proposal(
             description,
             vec![Change::ChangeVotePeriod(0)],
-            test_runner.get_current_epoch()
+            test_runner.get_current_epoch(),
+            dec!(10)
         );
         let mut proposal = ballot_box.proposals.get_mut(0).unwrap();
         proposal.status = ProposalStatus::VotingPhase;
@@ -719,7 +922,8 @@ mod tests
         ballot_box.make_proposal(
             description,
             vec![Change::ChangeVotePeriod(0)],
-            test_runner.get_current_epoch()
+            test_runner.get_current_epoch(),
+            dec!(10)
         );
 
         let mut voting_card_1 = VoterCard::new(0);
