@@ -17,7 +17,7 @@ blueprint! {
         /// Vault containing the admin_badge of the DAO
         internal_authority : Vault,
 
-        /// Vault containing Stux tokens locked by the users of the DAO
+        /// Vault containing Styx tokens locked by the users of the DAO
         locker_vault : Vault,
 
         /// Address of the Styx token
@@ -234,7 +234,7 @@ blueprint! {
             self.locker_vault.take(amount)
         }
 
-        /// Unlocks all the Styx tokensof a user and updates the VoterCard associated with the proof
+        /// Unlocks all the Styx tokens of a user and updates the VoterCard associated with the proof
         ///
         /// # Arguments
         /// * `voter_card_proof` - Proof of the user's VoterCard

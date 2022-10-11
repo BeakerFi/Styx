@@ -89,8 +89,8 @@ impl Account
 struct DAO_component {
     address: String,
     external_admin_address: String,
-    internal_admin_adress : String,
-    styx_adress: String,
+    internal_admin_address : String,
+    styx_address: String,
     voter_card_address: String,
 }
 
@@ -300,27 +300,27 @@ fn instantiate(account_addr: &str, package_addr: &str)
 
     let i = 4 ; // for translation due to more info
 
-    let dao_adress = result[13+i];
-    let external_admin_adress = result[14+i];
-    let internal_admin_adress = result[15+i];
-    let styx_adress = result[16+i];
-    let voter_card_adress = result[17+i];
+    let dao_address = result[13+i];
+    let external_admin_address = result[14+i];
+    let internal_admin_address = result[15+i];
+    let styx_address = result[16+i];
+    let voter_card_address = result[17+i];
 
-    let dao_adress = dao_adress.split(" ").collect::<Vec<&str>>()[2];
-    let external_admin_adress = external_admin_adress.split(" ").collect::<Vec<&str>>()[2];
-    let internal_admin_adress = internal_admin_adress.split(" ").collect::<Vec<&str>>()[2];
-    let styx_adress = styx_adress.split(" ").collect::<Vec<&str>>()[2];
-    let voter_card_adress = voter_card_adress.split(" ").collect::<Vec<&str>>()[2];
+    let dao_address = dao_address.split(" ").collect::<Vec<&str>>()[2];
+    let external_admin_address = external_admin_address.split(" ").collect::<Vec<&str>>()[2];
+    let internal_admin_address = internal_admin_address.split(" ").collect::<Vec<&str>>()[2];
+    let styx_address = styx_address.split(" ").collect::<Vec<&str>>()[2];
+    let voter_card_address = voter_card_address.split(" ").collect::<Vec<&str>>()[2];
 
 
 
 
     let dao = DAO_component {
-        address: String::from(dao_adress),
-        external_admin_address: String::from(external_admin_adress),
-        internal_admin_adress : String::from(internal_admin_adress),
-        styx_adress: String::from(styx_adress),
-        voter_card_address: String::from(voter_card_adress),
+        address: String::from(dao_address),
+        external_admin_address: String::from(external_admin_address),
+        internal_admin_address : String::from(internal_admin_address),
+        styx_address: String::from(styx_address),
+        voter_card_address: String::from(voter_card_address),
     };
     dao
 }
@@ -350,27 +350,27 @@ fn instantiate_custom(account_addr: &str, package_addr: &str, admin_badge_addr: 
 
     let i = 4 ; // for translation due to more info
 
-    let dao_adress = result[13+i];
-    let external_admin_adress = result[14+i];
-    let internal_admin_adress = result[15+i];
-    let styx_adress = result[16+i];
-    let voter_card_adress = result[17+i];
+    let dao_address = result[13+i];
+    let external_admin_address = result[14+i];
+    let internal_admin_address = result[15+i];
+    let styx_address = result[16+i];
+    let voter_card_address = result[17+i];
 
-    let dao_adress = dao_adress.split(" ").collect::<Vec<&str>>()[2];
-    let external_admin_adress = external_admin_adress.split(" ").collect::<Vec<&str>>()[2];
-    let internal_admin_adress = internal_admin_adress.split(" ").collect::<Vec<&str>>()[2];
-    let styx_adress = styx_adress.split(" ").collect::<Vec<&str>>()[2];
-    let voter_card_adress = voter_card_adress.split(" ").collect::<Vec<&str>>()[2];
+    let dao_address = dao_address.split(" ").collect::<Vec<&str>>()[2];
+    let external_admin_address = external_admin_address.split(" ").collect::<Vec<&str>>()[2];
+    let internal_admin_address = internal_admin_address.split(" ").collect::<Vec<&str>>()[2];
+    let styx_address = styx_address.split(" ").collect::<Vec<&str>>()[2];
+    let voter_card_address = voter_card_address.split(" ").collect::<Vec<&str>>()[2];
 
 
 
 
     let dao = DAO_component {
-        address: String::from(dao_adress),
-        external_admin_address: String::from(external_admin_adress),
-        internal_admin_adress : String::from(internal_admin_adress),
-        styx_adress: String::from(styx_adress),
-        voter_card_address: String::from(voter_card_adress),
+        address: String::from(dao_address),
+        external_admin_address: String::from(external_admin_address),
+        internal_admin_address : String::from(internal_admin_address),
+        styx_address: String::from(styx_address),
+        voter_card_address: String::from(voter_card_address),
     };
     dao
 }
@@ -576,7 +576,7 @@ fn test_instantiate_custom() {
     let package_addr = publish_package(Some("."));
     let admin_badge_addr = create_admin_badge();
     let dao = instantiate_custom(&user.address, &package_addr, &admin_badge_addr );
-    let owned = dao.get_amount_owned(&user.address, &dao.styx_adress);
+    let owned = dao.get_amount_owned(&user.address, &dao.styx_address);
     assert_eq!(owned.unwrap(), dec!(100));
 }
 
@@ -589,9 +589,9 @@ fn test_withdraw()
     let package_addr = publish_package(Some("."));
     let dao = instantiate(&user.address, &package_addr);
     withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
-    let user_owned_stx = user.get_amount_owned(&dao.styx_adress).unwrap();
+    let user_owned_stx = user.get_amount_owned(&dao.styx_address).unwrap();
     assert_eq!(user_owned_stx, dec!(10));
-    let dao_owned = dao.get_amount_owned(&user.address, &dao.styx_adress);
+    let dao_owned = dao.get_amount_owned(&user.address, &dao.styx_address);
     assert_eq!(dao_owned.unwrap(), dec!(90));
 }
 
@@ -603,11 +603,11 @@ fn test_mint_voter_card()
     let package_addr = publish_package(Some("."));
     let dao = instantiate(&user.address, &package_addr);
     withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
-    let mut owned_stx = user.get_amount_owned(&dao.styx_adress).unwrap();
+    let mut owned_stx = user.get_amount_owned(&dao.styx_address).unwrap();
     assert_eq!(owned_stx, dec!(10));
 
-    mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_adress, "5");
-    owned_stx =  user.get_amount_owned(&dao.styx_adress).unwrap();
+    mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_address, "5");
+    owned_stx =  user.get_amount_owned(&dao.styx_address).unwrap();
     assert_eq!(owned_stx, dec!(5));
 }
 
@@ -621,14 +621,14 @@ fn test_emit() {
 
     // Withdraw all tokens from styx vault
     withdraw(&user.address, &dao.address, &dao.external_admin_address, "100");
-    let mut dao_styx = dao.get_amount_owned(&user.address, &dao.styx_adress).unwrap();
-    let owned_stx = user.get_amount_owned(&dao.styx_adress).unwrap();
+    let mut dao_styx = dao.get_amount_owned(&user.address, &dao.styx_address).unwrap();
+    let owned_stx = user.get_amount_owned(&dao.styx_address).unwrap();
     assert_eq!(dao_styx, dec!(0));
     assert_eq!(owned_stx, dec!(100));
 
     // Now emit new tokens
     emit(&user.address, &dao.address, &dao.external_admin_address, "1000");
-    dao_styx = dao.get_amount_owned(&user.address, &dao.styx_adress).unwrap();
+    dao_styx = dao.get_amount_owned(&user.address, &dao.styx_address).unwrap();
     assert_eq!(dao_styx, dec!(1000));
 }
 
@@ -640,8 +640,8 @@ fn test_lock() {
     let package_addr = publish_package(Some("."));
     let dao = instantiate(&user.address, &package_addr);
     withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
-    mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_adress, "5");
-    lock(&user.address, &dao.address, &dao.voter_card_address, &dao.styx_adress, "5");
+    mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_address, "5");
+    lock(&user.address, &dao.address, &dao.voter_card_address, &dao.styx_address, "5");
     let locked = dao.get_locked_tokens(&user.address);
     assert_eq!(locked, dec!(5));
 }
@@ -653,9 +653,9 @@ fn test_unlock() {
     let package_addr = publish_package(Some("."));
     let dao = instantiate(&user.address, &package_addr);
     withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
-    mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_adress, "5");
+    mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_address, "5");
     unlock(&user.address, &dao.address, &dao.voter_card_address, "3");
-    let owned_stx = user.get_amount_owned(&dao.styx_adress).unwrap();
+    let owned_stx = user.get_amount_owned(&dao.styx_address).unwrap();
     assert_eq!(owned_stx, dec!(8));
 }
 
@@ -666,9 +666,9 @@ fn test_unlock_all() {
     let package_addr = publish_package(Some("."));
     let dao = instantiate(&user.address, &package_addr);
     withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
-    mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_adress, "5");
+    mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_address, "5");
     unlock_all(&user.address, &dao.address, &dao.voter_card_address);
-    let owned_stx = user.get_amount_owned(&dao.styx_adress).unwrap();
+    let owned_stx = user.get_amount_owned(&dao.styx_address).unwrap();
     assert_eq!(owned_stx, dec!(10));
 }
 
@@ -692,9 +692,9 @@ fn test_transferable_styx(){
     let package_addr = publish_package(Some("."));
     let dao = instantiate(&user1.address, &package_addr);
     withdraw(&user1.address, &dao.address, &dao.external_admin_address, "10");
-    simple_transfer(&user1.address, &user2.address, &dao.styx_adress, "5");
-    assert_eq!(user1.get_amount_owned(&dao.styx_adress).unwrap(), dec!(5));
-    assert_eq!(user2.get_amount_owned(&dao.styx_adress).unwrap(), dec!(5));
+    simple_transfer(&user1.address, &user2.address, &dao.styx_address, "5");
+    assert_eq!(user1.get_amount_owned(&dao.styx_address).unwrap(), dec!(5));
+    assert_eq!(user2.get_amount_owned(&dao.styx_address).unwrap(), dec!(5));
 }
 
 #[test]
@@ -705,7 +705,7 @@ fn test_untransferable_voter_card(){
     let package_addr = publish_package(Some("."));
     let dao = instantiate(&user1.address, &package_addr);
     withdraw(&user1.address, &dao.address, &dao.external_admin_address, "10");
-    mint_voter_card_with_bucket(&user1.address, &dao.address, &dao.styx_adress, "5");
+    mint_voter_card_with_bucket(&user1.address, &dao.address, &dao.styx_address, "5");
     let transfer_output = simple_transfer(&user1.address, &user2.address, &dao.voter_card_address, "5");
     // Fails correctly
     println!("{}",transfer_output);
