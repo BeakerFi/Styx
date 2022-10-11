@@ -326,6 +326,16 @@ fn support_proposal(account_addr: &str, dao_address : &str , voter_card_address 
     output
 }
 
+fn advance_with_proposal(account_addr: &str, dao_address : &str , proposal_id : &str) -> String {
+    let output = run_command(Command::new("resim")
+                             .arg("run")
+                             .arg("src/rtm/unlock_all.rtm")
+                             .env("account", account_addr)
+                             .env("dao", &dao_address)
+                             .env("proposal_id", proposal_id));
+    output
+}
+
 
 fn gift_asset(account_addr: &str, dao_address : &str , amount : &str, asset_address : &str) -> String {
     let output = run_command(Command::new("resim")
