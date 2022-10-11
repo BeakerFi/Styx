@@ -1,4 +1,4 @@
-//! We define here what is a BallotBox, which enables users to make Proposals to the DAO.
+//! Defines what is a BallotBox, which enables users to make Proposals to the DAO.
 //! All the functions here will be called by the Styx blueprint
 //!
 //! Note: we made the choice to pass the `current_epoch` as an argument of the functions instead of

@@ -1,4 +1,4 @@
-//! This is an extract of a mathematical library that I am building for Scrypto.
+//! This is an extract of a mathematical library that is being built.
 //! Some things are still not fully optimized (it would be better to work with BigUInts).
 //! There are still some bugs when working with Decimals that negative and Decimals bigger than 10^41.
 //! The latter is hard to debug because there are partly due to bugs in the Decimal library.

@@ -1,3 +1,5 @@
+//! Main blueprint with which members of the DAO will interact with
+
 use scrypto::prelude::*;
 use crate::ballot_box::BallotBox;
 use crate::proposal::{Vote, Change};
@@ -45,10 +47,6 @@ blueprint! {
         ///
         /// # Arguments
         /// * `initial_supply` - Initial Supply of Styx tokens to put in the styx_vault
-        ///
-        /// # Transaction Manifest
-        ///
-
         pub fn instantiate(initial_supply: Decimal) -> (ComponentAddress, Bucket) {
 
 
@@ -70,9 +68,6 @@ blueprint! {
         /// # Arguments
         /// * `initial_supply` - Initial supply of Styx tokens to put in the styx_vault
         /// * `admin_badge` - Admin badge to give permission to mint and withdraw to
-        ///
-        /// # Transaction Manifest
-        ///
         pub fn instantiate_custom(admin_badge : Bucket, initial_supply: Decimal) -> (ComponentAddress, Bucket) {
 
             // Creates the admin badge owned by the DAO contract
@@ -152,9 +147,6 @@ blueprint! {
         ///
         /// # Arguments
         /// * `deposit` - Bucket containing some Styx tokens to deposit
-        ///
-        /// # Transaction Manifest
-        ///
         pub fn mint_voter_card_with_bucket(&mut self, deposit : Bucket) -> Bucket {
             assert_eq!(deposit.resource_address(), self.styx_address);
 
@@ -184,9 +176,6 @@ blueprint! {
         ///
         /// # Access Rule
         /// Can only be called by this blueprint or the owner of the DAO
-        ///
-        /// # Transaction Manifest
-        ///
         pub fn withdraw(&mut self, amount: Decimal) -> Bucket
         {
             assert!(amount <= self.styx_vault.amount());
@@ -200,9 +189,6 @@ blueprint! {
         ///
         /// # Access Rule
         /// Can only be called by this blueprint or the owner of the DAO
-        ///
-        /// # Transaction Manifest
-        ///
         pub fn emit(&mut self, amount: Decimal)
         {
             let bucket = self.internal_authority.authorize(|| {
@@ -217,9 +203,6 @@ blueprint! {
         /// # Arguments
         /// * `voter_card_proof` - Proof of the user's VoterCard
         /// * `deposit` - Bucket containing Styx tokens to lock
-        ///
-        /// # Transaction Manifest
-        ///
         pub fn lock(&mut self, voter_card_proof : Proof, deposit : Bucket)
         {
             assert_eq!(deposit.resource_address(), self.styx_address);
@@ -238,9 +221,6 @@ blueprint! {
         /// # Arguments
         /// * `voter_card_proof` - Proof of the user's VoterCard
         /// * `deposit` - amount of tokens to unlock
-        ///
-        /// # Transaction Manifest
-        ///
         pub fn unlock(&mut self, proof : Proof, amount: Decimal) -> Bucket
         {
 
@@ -258,9 +238,6 @@ blueprint! {
         ///
         /// # Arguments
         /// * `voter_card_proof` - Proof of the user's VoterCard
-        ///
-        /// # Transaction Manifest
-        ///
         pub fn unlock_all(&mut self, proof : Proof) -> Bucket
         {
             let validated_proof = self.check_proof(proof);
@@ -279,9 +256,6 @@ blueprint! {
         /// * `description` - description of the Proposal
         /// * `suggested_changes` - list of changes to be made to the DAO
         /// * `voter_card_proof` - proof of the user's VoterCard
-        ///
-        /// # Transaction Manifest
-        ///
         pub fn make_proposal(&mut self, description: String, suggested_changes: Vec<Change>, voter_card_proof: Proof)
         {
             // Check that it is a user of the DAO
@@ -294,9 +268,6 @@ blueprint! {
         /// # Arguments
         /// * `proposal_id` - id of the Proposal to support
         /// * `voter_card_proof` - proof of the user's VoterCard
-        ///
-        /// # Transaction Manifest
-        ///
         pub fn support_proposal(&mut self, proposal_id: usize, voter_card_proof: Proof)
         {
             let validated_id = self.check_proof(voter_card_proof);
@@ -311,9 +282,6 @@ blueprint! {
         ///
         /// # Arguments
         /// * `proposal_id` - id of the Proposal
-        ///
-        /// # Transaction Manifest
-        ///
         pub fn advance_with_proposal(&mut self, proposal_id: usize)
         {
             match self.ballot_box.advance_with_proposal(proposal_id, Runtime::current_epoch())
@@ -348,9 +316,6 @@ blueprint! {
         /// * `proposal_id` - id of the Proposal
         /// * `delegate_to` - user's VoterCard id to whom to delegate
         /// * `voter_card_proof` - proof of the user's VoterCard
-        ///
-        /// # Transaction Manifest
-        ///
         pub fn delegate_for_proposal(&mut self, proposal_id: usize, delegate_to: u64, voter_card_proof: Proof)
         {
             let validated_id = self.check_proof(voter_card_proof);
@@ -366,9 +331,6 @@ blueprint! {
         /// * `proposal_id` - id of the Proposal
         /// * `voter_card_proof` - proof of the user's VoterCard
         /// * `vote` - vote to cast
-        ///
-        /// # Transaction Manifest
-        ///
         pub fn vote_for_proposal(&mut self, proposal_id: usize, voter_card_proof: Proof, vote: Vote)
         {
             let validated_id = self.check_proof(voter_card_proof);
@@ -382,9 +344,6 @@ blueprint! {
         ///
         /// # Arguments
         /// * `asset` - Bucket containing the asset to gift to the DAO
-        ///
-        /// # Transaction Manifest
-        ///
         pub fn gift_asset(&mut self, asset: Bucket)
         {
             let asset_address = asset.resource_address();
@@ -415,9 +374,6 @@ blueprint! {
         ///
         /// # Arguments
         /// * `asset_address` - address of the asset to check
-        ///
-        /// # Transaction Manifest
-        ///
         pub fn amount_owned(&self, asset_address: ResourceAddress) -> Decimal
         {
             if asset_address == self.styx_address
@@ -434,13 +390,17 @@ blueprint! {
             }
         }
 
+        /// Returns the amount of DAO tokens locked
+        pub fn amount_locked(&self) -> Decimal
+        {
+            self.locker_vault.amount()
+        }
+
+
         /// Claims the assets due to a user and returns them as a list of buckets
         ///
         /// # Arguments
         /// * `voter_card_proof` - proof of the user's VoterCard
-        ///
-        /// # Transaction Manifest
-        ///
         pub fn claim_assets(&mut self, voter_card_proof: Proof) -> Vec<Bucket>
         {
             let validated_proof = self.check_proof(voter_card_proof);

@@ -1,4 +1,4 @@
-//! We define here what is a voter card, which enables users to vote and participate in the DAO.
+//! Defines what is a voter card, which enables users to vote and participate in the DAO.
 //! Note: we made the choice to pass the `current_epoch` as an argument of the functions instead of
 //! calling `Runtime::current_epoch` to be able to unit test the file without using blueprints
 

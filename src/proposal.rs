@@ -1,4 +1,4 @@
-//! We define here what is a proposal and how it can change the DAO
+//! Defines here what is a proposal and how it can change the DAO
 
 use std::collections::HashMap;
 use scrypto::dec;

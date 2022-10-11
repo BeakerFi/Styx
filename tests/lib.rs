@@ -140,6 +140,50 @@ impl DAO_component
         }
         None
     }
+
+    pub fn get_locked_tokens(&self, account_address: &str) -> Decimal
+    {
+        let output = amount_locked(account_address, &self.address);
+        let mut lines = output.split("\n").collect::<Vec<&str>>();
+        let mut return_dec = dec!(0);
+        loop
+        {
+            match lines.pop()
+            {
+                None => { break; }
+                Some(line) =>
+                    {
+                        // We are looking for a line of the form ├─ Decimal("90")
+                        let words = line.split(" ").collect::<Vec<&str>>();
+                        match words.get(1)
+                        {
+                            None => {}
+                            Some(word) =>
+                                {
+                                    // We split the word with "
+
+                                    let subwords = word.split("\"").collect::<Vec<&str>>();
+                                    let word_before = subwords.get(0);
+                                    let amount = subwords.get(1);
+
+                                    match word_before
+                                    {
+                                        None => {  }
+                                        Some(word2) =>
+                                            {
+                                                if *word2 == "Decimal("
+                                                {
+                                                    return_dec = Decimal::from(*amount.unwrap())
+                                                }
+                                            }
+                                    }
+                                }
+                        }
+                    }
+            }
+        }
+        return_dec
+    }
 }
 
 
@@ -243,7 +287,7 @@ fn instantiate(account_addr: &str, package_addr: &str)
 {
     let output = run_command(Command::new("resim")
                              .arg("run")
-                             .arg("src/rtm/instantiate.rtm")
+                             .arg("rtm/instantiate.rtm")
                              .env("account", account_addr)
                              .env("package", &package_addr)
                              .env("initial_supply", "100"));
@@ -292,7 +336,7 @@ fn instantiate_custom(account_addr: &str, package_addr: &str, admin_badge_addr: 
 {
     let output = run_command(Command::new("resim")
                              .arg("run")
-                             .arg("src/rtm/instantiate.rtm")
+                             .arg("rtm/instantiate.rtm")
                              .env("account", account_addr)
                              .env("package", &package_addr)
                              .env("admin_badge", admin_badge_addr)
@@ -336,7 +380,7 @@ fn instantiate_custom(account_addr: &str, package_addr: &str, admin_badge_addr: 
 fn mint_voter_card_with_bucket(account_addr: &str,dao_address : &str , styx_address : &str, bucket_amount : &str) -> String {
     let output = run_command(Command::new("resim")
                              .arg("run")
-                             .arg("src/rtm/mint_voter_card_with_bucket.rtm")
+                             .arg("rtm/mint_voter_card_with_bucket.rtm")
                              .env("account", account_addr)
                              .env("dao", &dao_address)
                              .env("styx", styx_address)
@@ -348,7 +392,7 @@ fn mint_voter_card_with_bucket(account_addr: &str,dao_address : &str , styx_addr
 fn withdraw(account_addr: &str,dao_address : &str , external_badge_address : &str, amount : &str) -> String {
     let output = run_command(Command::new("resim")
                              .arg("run")
-                             .arg("src/rtm/withdraw.rtm")
+                             .arg("rtm/withdraw.rtm")
                              .env("account", account_addr)
                              .env("dao", &dao_address)
                              .env("admin_badge", external_badge_address)
@@ -361,7 +405,7 @@ fn withdraw(account_addr: &str,dao_address : &str , external_badge_address : &st
 fn emit(account_addr: &str,dao_address : &str , external_badge_address : &str, amount : &str) -> String {
     let output = run_command(Command::new("resim")
                              .arg("run")
-                             .arg("src/rtm/emit.rtm")
+                             .arg("rtm/emit.rtm")
                              .env("account", account_addr)
                              .env("dao", &dao_address)
                              .env("admin_badge", external_badge_address)
@@ -374,7 +418,7 @@ fn emit(account_addr: &str,dao_address : &str , external_badge_address : &str, a
 fn lock(account_addr: &str, dao_address : &str , voter_card_address : &str, styx_address : &str, bucket_amount : &str) -> String {
     let output = run_command(Command::new("resim")
                              .arg("run")
-                             .arg("src/rtm/lock.rtm")
+                             .arg("rtm/lock.rtm")
                              .env("account", account_addr)
                              .env("dao", &dao_address)
                              .env("styx", styx_address)
@@ -387,7 +431,7 @@ fn lock(account_addr: &str, dao_address : &str , voter_card_address : &str, styx
 fn unlock(account_addr: &str, dao_address : &str , voter_card_address : &str, bucket_amount : &str) -> String {
     let output = run_command(Command::new("resim")
                              .arg("run")
-                             .arg("src/rtm/unlock.rtm")
+                             .arg("rtm/unlock.rtm")
                              .env("account", account_addr)
                              .env("dao", &dao_address)
                              .env("voter_card", voter_card_address)
@@ -399,7 +443,7 @@ fn unlock(account_addr: &str, dao_address : &str , voter_card_address : &str, bu
 fn unlock_all(account_addr: &str, dao_address : &str , voter_card_address : &str) -> String {
     let output = run_command(Command::new("resim")
                              .arg("run")
-                             .arg("src/rtm/unlock_all.rtm")
+                             .arg("rtm/unlock_all.rtm")
                              .env("account", account_addr)
                              .env("dao", &dao_address)
                              .env("voter_card", voter_card_address));
@@ -410,7 +454,7 @@ fn unlock_all(account_addr: &str, dao_address : &str , voter_card_address : &str
 fn support_proposal(account_addr: &str, dao_address : &str , voter_card_address : &str, proposal_id : &str) -> String {
     let output = run_command(Command::new("resim")
                              .arg("run")
-                             .arg("src/rtm/support_proposal.rtm")
+                             .arg("rtm/support_proposal.rtm")
                              .env("account", account_addr)
                              .env("dao", &dao_address)
                              .env("voter_card", voter_card_address)
@@ -421,7 +465,7 @@ fn support_proposal(account_addr: &str, dao_address : &str , voter_card_address 
 fn advance_with_proposal(account_addr: &str, dao_address : &str , proposal_id : &str) -> String {
     let output = run_command(Command::new("resim")
                              .arg("run")
-                             .arg("src/rtm/advance_with_proposal.rtm")
+                             .arg("rtm/advance_with_proposal.rtm")
                              .env("account", account_addr)
                              .env("dao", &dao_address)
                              .env("proposal_id", proposal_id));
@@ -431,7 +475,7 @@ fn advance_with_proposal(account_addr: &str, dao_address : &str , proposal_id : 
 fn delegate_for_proposal(account_addr: &str, dao_address : &str, voter_card_address : &str , proposal_id : &str, deleguate_to : &str) -> String {
     let output = run_command(Command::new("resim")
                              .arg("run")
-                             .arg("src/rtm/delegate_for_proposal.rtm")
+                             .arg("rtm/delegate_for_proposal.rtm")
                              .env("account", account_addr)
                              .env("dao", &dao_address)
                              .env("voter_card", voter_card_address)
@@ -443,7 +487,7 @@ fn delegate_for_proposal(account_addr: &str, dao_address : &str, voter_card_addr
 fn vote_for_proposal(account_addr: &str, dao_address : &str, voter_card_address : &str , proposal_id : &str, vote : &str) -> String {
     let output = run_command(Command::new("resim")
                              .arg("run")
-                             .arg("src/rtm/delegate_for_proposal.rtm")
+                             .arg("rtm/delegate_for_proposal.rtm")
                              .env("account", account_addr)
                              .env("dao", &dao_address)
                              .env("voter_card", voter_card_address)
@@ -456,7 +500,7 @@ fn vote_for_proposal(account_addr: &str, dao_address : &str, voter_card_address 
 fn gift_asset(account_addr: &str, dao_address : &str , amount : &str, asset_address : &str) -> String {
     let output = run_command(Command::new("resim")
                              .arg("run")
-                             .arg("src/rtm/gift_asset.rtm")
+                             .arg("rtm/gift_asset.rtm")
                              .env("account", account_addr)
                              .env("dao", &dao_address)
                              .env("asset", asset_address)
@@ -467,17 +511,28 @@ fn gift_asset(account_addr: &str, dao_address : &str , amount : &str, asset_addr
 fn amount_owned(account_addr: &str, dao_address : &str , asset_address : &str) -> String {
     let output = run_command(Command::new("resim")
                              .arg("run")
-                             .arg("src/rtm/amount_owned.rtm")
+                             .arg("rtm/amount_owned.rtm")
                              .env("account", account_addr)
                              .env("dao", &dao_address)
                              .env("asset", asset_address));
     output
 }
 
+fn amount_locked(account_addr: &str, dao_address: &str) -> String {
+    let output = run_command(Command::new("resim")
+                            .arg("run")
+                            .arg("rtm/amount_locked.rtm")
+                            .env("account", account_addr)
+                            .env("dao", &dao_address));
+
+    output
+
+}
+
 fn claim_asset(account_addr: &str, dao_address : &str , voter_card_address : &str) -> String {
     let output = run_command(Command::new("resim")
                              .arg("run")
-                             .arg("src/rtm/claim_assets.rtm")
+                             .arg("rtm/claim_assets.rtm")
                              .env("account", account_addr)
                              .env("dao", &dao_address)
                              .env("voter_card", voter_card_address));
@@ -487,6 +542,7 @@ fn claim_asset(account_addr: &str, dao_address : &str , voter_card_address : &st
 #[test]
 fn test_publish() {
     reset_sim();
+    let _user = create_account();
     let package_addr = publish_package(Some("."));
     println!("User Package : {:?}", package_addr);
 }
@@ -576,6 +632,8 @@ fn test_lock() {
     withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
     mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_adress, "5");
     lock(&user.address, &dao.address, &dao.voter_card_address, &dao.styx_adress, "5");
+    let locked = dao.get_locked_tokens(&user.address);
+    assert_eq!(locked, dec!(5));
 }
 
 #[test]
@@ -586,9 +644,22 @@ fn test_unlock() {
     let dao = instantiate(&user.address, &package_addr);
     withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
     mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_adress, "5");
-    println!("{}", unlock(&user.address, &dao.address, &dao.voter_card_address, "3"));
+    unlock(&user.address, &dao.address, &dao.voter_card_address, "3");
     let owned_stx = user.get_amount_owned(&dao.styx_adress).unwrap();
-    assert_eq!(owned_stx, dec!(6));
+    assert_eq!(owned_stx, dec!(8));
+}
+
+#[test]
+fn test_unlock_all() {
+    reset_sim();
+    let user = create_account();
+    let package_addr = publish_package(Some("."));
+    let dao = instantiate(&user.address, &package_addr);
+    withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
+    mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_adress, "5");
+    unlock_all(&user.address, &dao.address, &dao.voter_card_address);
+    let owned_stx = user.get_amount_owned(&dao.styx_adress).unwrap();
+    assert_eq!(owned_stx, dec!(10));
 }
 
 #[test]
@@ -598,10 +669,10 @@ fn test_gift_asset()
     let user = create_account();
     let package_addr = publish_package(Some("."));
     let dao = instantiate(&user.address, &package_addr);
+    gift_asset(&user.address, &dao.address, "10", RADIX_TOKEN);
     let dao_rdx = dao.get_amount_owned(&user.address, RADIX_TOKEN).unwrap();
     assert_eq!(dao_rdx, dec!(10));
 }
-
 
 
 
