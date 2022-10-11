@@ -284,11 +284,14 @@ blueprint! {
         /// # Arguments
         /// * `description` - description of the Proposal
         /// * `suggested_changes` - list of changes to be made to the DAO
+        /// * `voter_card_proof` - proof of the user's VoterCard
         ///
         /// # Transaction Manifest
         ///
-        pub fn make_proposal(&mut self, description: String, suggested_changes: Vec<Change>)
+        pub fn make_proposal(&mut self, description: String, suggested_changes: Vec<Change>, voter_card_proof: Proof)
         {
+            // Check that it is a user of the DAO
+            self.check_proof(voter_card_proof);
             self.ballot_box.make_proposal(description, suggested_changes, Runtime::current_epoch(), self.emitted_tokens);
         }
 
@@ -321,6 +324,7 @@ blueprint! {
         {
             match self.ballot_box.advance_with_proposal(proposal_id, Runtime::current_epoch())
             {
+                // the BallotBox passes changes that are made to this blueprints
                 None => {}
                 Some(changes) =>
                 {

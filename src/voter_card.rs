@@ -8,8 +8,8 @@ use crate::decimal_maths::{exp};
 use crate::proposal::ProposalStatus;
 
 /// A voter card, records the different tokens locked and the epoch when they were.
-/// It also records the votes that the voters casted and the delegatees the voter has.
-/// Adding a delegatee resets the locking epoch of the tokens.
+/// It also records the votes that the voters casted and the voters they approve.
+/// Adding an approved voter resets the locking epoch of the tokens.
 #[derive(NonFungibleData)]
 pub struct VoterCard {
 
@@ -25,8 +25,8 @@ pub struct VoterCard {
     /// Votes casted by the voter
     pub votes : Vec<(usize, ProposalStatus)>,
 
-    /// Possible delegatees of the voter
-    pub delegatees: Vec<u64>
+    /// Voters that the voter approves
+    pub approved_voters: Vec<u64>
 }
 
 impl VoterCard
@@ -49,7 +49,7 @@ impl VoterCard
             total_number_of_token : dec!(0),
             locked_tokens: vec![],
             votes: vec![],
-            delegatees: vec![]
+            approved_voters: vec![]
         }
     }
 
@@ -87,15 +87,15 @@ impl VoterCard
     /// ```
     /// use styx::voter_card::VoterCard;
     /// let mut new_voter_card = VoterCard::new(0);
-    /// assert!(!new_voter_card.can_delegate_to(1));
+    /// assert!(!new_voter_card.approves(1));
     /// ```
-    pub fn can_delegate_to(&self, other_voter: u64) -> bool
+    pub fn approves(&self, other_voter: u64) -> bool
     {
         if self.voter_id == other_voter
         {
             return true;
         }
-        for nfid in self.delegatees.iter()
+        for nfid in self.approved_voters.iter()
         {
             if *nfid == other_voter
             {
@@ -105,7 +105,7 @@ impl VoterCard
         false
     }
 
-    /// Adds a delegatee to the possible delegatees of the voter, resets the lock epoch and merges
+    /// Adds a user to list of voters the voter approves, resets the lock epoch and merges
     /// all the locked tokens
     ///
     /// # Arguments
@@ -121,14 +121,14 @@ impl VoterCard
     /// let mut test_runner = TestRunner::new(true, &mut store);
     ///
     /// let mut new_voter_card = VoterCard::new(0);
-    /// new_voter_card.add_delegatee(1, test_runner.get_current_epoch());
-    /// assert!(new_voter_card.can_delegate_to(1));
+    /// new_voter_card.approve(1, test_runner.get_current_epoch());
+    /// assert!(new_voter_card.approves(1));
     /// ```
-    pub fn add_delegatee(&mut self, other_voter: u64, current_epoch: u64)
+    pub fn approve(&mut self, other_voter: u64, current_epoch: u64)
     {
-        if !self.can_delegate_to(other_voter)
+        if !self.approves(other_voter)
         {
-            self.delegatees.push(other_voter);
+            self.approved_voters.push(other_voter);
             self.merge(current_epoch);
         }
     }
@@ -352,7 +352,7 @@ mod tests
         let mut voter_card = VoterCard::new(0);
         voter_card.add_tokens(dec!(45), test_runner.get_current_epoch());
         assert_eq!(voter_card.locked_tokens, vec![(dec!(45), test_runner.get_current_epoch())]);
-        assert!(voter_card.can_delegate_to(voter_card.voter_id));
+        assert!(voter_card.approves(voter_card.voter_id));
     }
 
     #[test]
@@ -361,9 +361,9 @@ mod tests
         let mut store = TypedInMemorySubstateStore::with_bootstrap();
         let mut test_runner = TestRunner::new(true, &mut store);
         let mut voter_card = VoterCard::new(0);
-        voter_card.add_delegatee(1, test_runner.get_current_epoch());
+        voter_card.approve(1, test_runner.get_current_epoch());
 
-        assert!(voter_card.can_delegate_to(1));
+        assert!(voter_card.approves(1));
     }
 
     #[test]

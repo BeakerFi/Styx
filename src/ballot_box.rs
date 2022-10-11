@@ -246,8 +246,8 @@ impl BallotBox
     ///let mut store = TypedInMemorySubstateStore::with_bootstrap();
     ///let mut test_runner = TestRunner::new(true, &mut store);
     ///let mut voter_card = VoterCard::new(0);
-    /// // Add voter id as possible delegatee
-    ///voter_card.add_delegatee(1, test_runner.get_current_epoch());
+    /// // Add voter id as approved
+    ///voter_card.approve(1, test_runner.get_current_epoch());
     ///voter_card.add_tokens(dec!(100), test_runner.get_current_epoch());
     ///let current_epoch = test_runner.get_current_epoch();
     /// // Advance time to make the tokens worth something
@@ -266,7 +266,7 @@ impl BallotBox
     {
         assert!(proposal_id < self.new_proposal_id, "This proposal does not exist!");
         assert_ne!(delegate_to, voter_card.voter_id, "Delegating to yourself does not make sense");
-        assert!(voter_card.can_delegate_to(delegate_to), "Cannot delegate to this person id");
+        assert!(voter_card.approves(delegate_to), "Cannot delegate to this person id");
 
         let proposal: &mut Proposal = self.proposals.get_mut(proposal_id).unwrap();
         assert!(proposal.epoch_expiration > current_epoch, "The voting period has already ended for this proposal.");
@@ -311,8 +311,8 @@ impl BallotBox
     /// let mut store = TypedInMemorySubstateStore::with_bootstrap();
     /// let mut test_runner = TestRunner::new(true, &mut store);
     /// let mut voter_card = VoterCard::new(0);
-    /// // Add voter id as possible delegatee
-    /// voter_card.add_delegatee(1, test_runner.get_current_epoch());
+    /// // Add voter id as approved
+    /// voter_card.approve(1, test_runner.get_current_epoch());
     /// voter_card.add_tokens(dec!(100), test_runner.get_current_epoch());
     /// let current_epoch = test_runner.get_current_epoch();
     /// // Advance time to make the tokens worth something
@@ -669,7 +669,7 @@ mod tests
 
         let mut voting_card = VoterCard::new(0);
         voting_card.add_tokens(dec!(1000), test_runner.get_current_epoch());
-        voting_card.add_delegatee(1, test_runner.get_current_epoch());
+        voting_card.approve(1, test_runner.get_current_epoch());
 
         ballot_box.delegate_for_proposal(0, 1, &mut voting_card, test_runner.get_current_epoch());
         let updated_proposal = ballot_box.proposals.get(0).unwrap();
@@ -716,7 +716,7 @@ mod tests
         );
         let mut voting_card = VoterCard::new(0);
         voting_card.add_tokens(dec!(1000), test_runner.get_current_epoch());
-        voting_card.add_delegatee(1, test_runner.get_current_epoch());
+        voting_card.approve(1, test_runner.get_current_epoch());
 
         ballot_box.delegate_for_proposal(0, 1, &mut voting_card, test_runner.get_current_epoch());
     }
@@ -742,7 +742,7 @@ mod tests
 
         let mut voting_card = VoterCard::new(0);
         voting_card.add_tokens(dec!(1234), test_runner.get_current_epoch());
-        voting_card.add_delegatee(1, test_runner.get_current_epoch());
+        voting_card.approve(1, test_runner.get_current_epoch());
 
         ballot_box.delegate_for_proposal(0,1, &mut voting_card, test_runner.get_current_epoch());
     }
@@ -767,8 +767,8 @@ mod tests
 
         let mut voting_card = VoterCard::new(0);
         voting_card.add_tokens(dec!(1234), test_runner.get_current_epoch());
-        voting_card.add_delegatee(1, test_runner.get_current_epoch());
-        voting_card.add_delegatee(2, test_runner.get_current_epoch());
+        voting_card.approve(1, test_runner.get_current_epoch());
+        voting_card.approve(2, test_runner.get_current_epoch());
 
         ballot_box.delegate_for_proposal(0,1, &mut voting_card, test_runner.get_current_epoch());
         ballot_box.delegate_for_proposal(0,2, &mut voting_card, test_runner.get_current_epoch());
@@ -796,7 +796,7 @@ mod tests
 
         let mut voting_card = VoterCard::new(0);
         voting_card.add_tokens(dec!(1000), test_runner.get_current_epoch());
-        voting_card.add_delegatee(1, test_runner.get_current_epoch());
+        voting_card.approve(1, test_runner.get_current_epoch());
         voting_card.try_vote_for(0, &ProposalStatus::VotingPhase);
 
         ballot_box.delegate_for_proposal(0,1, &mut voting_card, test_runner.get_current_epoch());
@@ -844,7 +844,7 @@ mod tests
 
 
         let mut voting_card_1 = VoterCard::new(0);
-        voting_card_1.add_delegatee(1, test_runner.get_current_epoch());
+        voting_card_1.approve(1, test_runner.get_current_epoch());
         voting_card_1.add_tokens(dec!(1), test_runner.get_current_epoch());
 
         let mut voting_card_2 = VoterCard::new(1);
@@ -880,7 +880,7 @@ mod tests
 
 
         let mut voting_card_1 = VoterCard::new(0);
-        voting_card_1.add_delegatee(1, test_runner.get_current_epoch());
+        voting_card_1.approve(1, test_runner.get_current_epoch());
         voting_card_1.add_tokens(dec!(1), test_runner.get_current_epoch());
 
         let mut voting_card_2 = VoterCard::new(1);
