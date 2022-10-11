@@ -22,7 +22,7 @@
 
 
 extern crate core;
-pub mod token_converter;
+pub mod styx_dao;
 pub mod ballot_box;
 pub mod decimal_maths;
 pub mod proposals;
