@@ -327,7 +327,7 @@ blueprint! {
         ///
         pub fn advance_with_proposal(&mut self, proposal_id: usize)
         {
-            match self.ballot_box.advance_with_proposal(proposal_id, self.emitted_tokens, Runtime::current_epoch())
+            match self.ballot_box.advance_with_proposal(proposal_id, Runtime::current_epoch())
             {
                 None => {}
                 Some(changes) =>
