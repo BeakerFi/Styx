@@ -279,13 +279,25 @@ fn emit(account_addr: &str,dao_address : &str , external_badge_address : &str, a
 }
 
 
-fn lock(account_addr: &str,dao_address : &str , voter_card_address : &str, styx_address : &str, bucket_amount : &str) -> String {
+fn lock(account_addr: &str, dao_address : &str , voter_card_address : &str, styx_address : &str, bucket_amount : &str) -> String {
     let output = run_command(Command::new("resim")
                              .arg("run")
                              .arg("src/rtm/lock.rtm")
                              .env("account", account_addr)
                              .env("dao", &dao_address)
                              .env("styx", styx_address)
+                             .env("voter_card", voter_card_address)
+                             .env("amount", bucket_amount));
+    output
+}
+
+
+fn unlock(account_addr: &str, dao_address : &str , voter_card_address : &str, bucket_amount : &str) -> String {
+    let output = run_command(Command::new("resim")
+                             .arg("run")
+                             .arg("src/rtm/unlock.rtm")
+                             .env("account", account_addr)
+                             .env("dao", &dao_address)
                              .env("voter_card", voter_card_address)
                              .env("amount", bucket_amount));
     output
