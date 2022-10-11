@@ -25,6 +25,7 @@ use radix_engine::transaction::TransactionReceipt;
 use scrypto::core::NetworkDefinition;
 use scrypto::prelude::*;
 use scrypto_unit::*;
+use styx::styx_dao::Styx_impl;
 use transaction::builder::ManifestBuilder;
 
 const RADIX_TOKEN: &str = "030000000000000000000000000000000000000000000000000004";
@@ -109,6 +110,16 @@ fn create_admin_badge() -> String {
 
     String::from(output.split("\n").collect::<Vec<&str>>()[13].split(" ").collect::<Vec<&str>>()[2])
 
+}
+
+
+fn show(address: &str) {
+
+    let output = run_command(Command::new("resim")
+                            .arg("show")
+                            .arg(address)
+                        ); 
+    println!("{}", output);
 }
 
 
@@ -303,8 +314,10 @@ fn test_withdraw() {
     let user = create_account();
     let package_addr = publish_package(Some("."));
     let dao = instantiate(&user.address, &package_addr);
+    show(&user.address);
     let witdraw_output = withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
     println!("{}",witdraw_output);
+    show(&user.address);
 }
 
 #[test]
@@ -314,8 +327,10 @@ fn test_mint_voter_card() {
     let package_addr = publish_package(Some("."));
     let dao = instantiate(&user.address, &package_addr);
     withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
+    show(&user.address);
     let mint_ouput = mint_voter_card_with_bucket(&user.address, &dao.address, &dao.styx_adress, "5");
     println!("{}",mint_ouput);
+    show(&user.address);
 }
 
 
@@ -325,8 +340,10 @@ fn test_emit() {
     let user = create_account();
     let package_addr = publish_package(Some("."));
     let dao = instantiate(&user.address, &package_addr);
+    show(&dao.address);
     let witdraw_output = withdraw(&user.address, &dao.address, &dao.external_admin_address, "10");
     println!("{}",witdraw_output);
+    show(&dao.address);
 }
 
 
