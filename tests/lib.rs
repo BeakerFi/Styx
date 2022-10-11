@@ -99,6 +99,19 @@ fn create_account() -> Account {
     }
 }
 
+// Create a token and return it's address 
+fn create_admin_badge() -> String {
+    let output = run_command(Command::new("resim")
+                            .arg("new-token-fixed")
+                            .arg("--name")
+                            .arg("admin_bagde")
+                            .arg("1")
+                        );
+    
+    String::from(output.split("\n").collect::<Vec<&str>>()[13].split(" ").collect::<Vec<&str>>()[2])
+
+}
+
 
 /// Publishes the package by calling "resim publish ."
 ///
@@ -118,10 +131,10 @@ fn publish_package(path: Option<&str>) -> String {
 
 
 
-/// Creates a new Participants catalog via
-/// rtm/participants/instantiate_participant_catalog.rtm
+/// Creates a new Dao catalog via
+/// rtm/instantiate.rtm
 ///
-/// Returns the catalog created.
+/// Returns the dao created.
 fn instantiate(account_addr: &str, package_addr: &str)
                                    -> DAO_component
 {
@@ -130,6 +143,56 @@ fn instantiate(account_addr: &str, package_addr: &str)
                              .arg("src/rtm/instantiate.rtm")
                              .env("account", account_addr)
                              .env("package", &package_addr)
+                             .env("initial_supply", "100"));
+
+                             
+    
+
+    println!("{}",output);
+
+    let result = output.split("\n").collect::<Vec<&str>>();
+
+    let i = 4 ; // for translation due to more info
+
+    let dao_adress = result[13+i];
+    let external_admin_adress = result[14+i];
+    let internal_admin_adress = result[15+i];
+    let styx_adress = result[16+i];
+    let voter_card_adress = result[17+i];
+
+    let dao_adress = dao_adress.split(" ").collect::<Vec<&str>>()[2];
+    let external_admin_adress = external_admin_adress.split(" ").collect::<Vec<&str>>()[2];
+    let internal_admin_adress = internal_admin_adress.split(" ").collect::<Vec<&str>>()[2];
+    let styx_adress = styx_adress.split(" ").collect::<Vec<&str>>()[2];
+    let voter_card_adress = voter_card_adress.split(" ").collect::<Vec<&str>>()[2];
+
+
+
+
+    let dao = DAO_component {
+        address: String::from(dao_adress),
+        external_admin_address: String::from(external_admin_adress),
+        internal_admin_adress : String::from(internal_admin_adress),
+        styx_adress: String::from(styx_adress),
+        voter_card_address: String::from(voter_card_adress),
+    };
+    dao 
+}
+
+
+/// Creates a new Dao catalog via
+/// rtm/instantiate_custom.rtm
+///
+/// Returns the dao created.
+fn instantiate_custom(account_addr: &str, package_addr: &str, admin_badge_addr: &str)
+                                   -> DAO_component
+{
+    let output = run_command(Command::new("resim")
+                             .arg("run")
+                             .arg("src/rtm/instantiate.rtm")
+                             .env("account", account_addr)
+                             .env("package", &package_addr)
+                             .env("admin_badge", admin_badge_addr)
                              .env("initial_supply", "100"));
 
                              
@@ -184,6 +247,16 @@ fn test_instantiate() {
     let user = create_account();
     let package_addr = publish_package(Some("."));
     let dao = instantiate(&user.address, &package_addr);
+    println!("dao component : {:#?}", dao);
+}
+
+#[test]
+fn test_instantiate_custom() {
+    reset_sim();
+    let user = create_account();
+    let package_addr = publish_package(Some("."));
+    let admin_badge_addr = create_admin_badge();
+    let dao = instantiate_custom(&user.address, &package_addr, &admin_badge_addr );
     println!("dao component : {:#?}", dao);
 }
 
