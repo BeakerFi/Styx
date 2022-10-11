@@ -122,7 +122,7 @@ blueprint! {
                 .no_initial_supply();
 
 
-            let mut dao = Self {
+            let styx_dao = Self {
                 styx_vault: Vault::with_bucket(styx_bucket),
                 internal_authority: Vault::with_bucket(internal_admin),
                 voter_card_address : voter_card_address,
@@ -141,12 +141,15 @@ blueprint! {
                     styx : {},
                     voter_card : {}",
                     admin_badge.resource_address(),
-                    dao.internal_authority.resource_address(),
-                    dao.styx_address,
-                    dao.voter_card_address
+                    styx_dao.internal_authority.resource_address(),
+                    styx_dao.styx_address,
+                    styx_dao.voter_card_address
                 );
+            
+            let mut dao = styx_dao.instantiate();
+            dao.add_access_check(blueprint_rules);
 
-            return (dao.instantiate().globalize(),admin_badge)
+            return (dao.globalize(),admin_badge)
         }
 
         /// Mints a new voter card with initial locked tokens given as deposit and returns it
