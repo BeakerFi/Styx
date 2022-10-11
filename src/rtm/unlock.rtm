@@ -17,21 +17,17 @@ CALL_METHOD
 
 CALL_METHOD
     ComponentAddress("${account}")
-    "withdraw"
+    "create_proof"
     ResourceAddress("${voter_card}");
 
-TAKE_FROM_WORKTOP
-    ResourceAddress("${voter_card}")
-    Bucket("VoterCard");
-
-CREATE_PROOF_FROM_BUCKET 
-    Bucket("VoterCard") 
-    Proof("VoterCard Proof");
+CREATE_PROOF_FROM_AUTH_ZONE 
+    ResourceAddress("${voter_card}") 
+    Proof("VoterCard");
 
 CALL_METHOD
    ComponentAddress("${dao}")
    "unlock"
-   Proof("VoterCard Proof")
+   Proof("VoterCard")
    Decimal("${amount}");
 
 CALL_METHOD 
