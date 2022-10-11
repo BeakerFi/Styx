@@ -1,0 +1,37 @@
+#
+# Parameters:
+#
+# dao: address of the dao component
+#
+# account: address of the user account that will lock tokens 
+#
+# voter_card : proof of VoterCard
+#
+
+CALL_METHOD 
+    ComponentAddress("${account}") 
+    "lock_fee" 
+    Decimal("100");
+
+CALL_METHOD
+    ComponentAddress("${account}")
+    "withdraw"
+    ResourceAddress("${voter_card}");
+
+TAKE_FROM_WORKTOP
+    ResourceAddress("${voter_card}")
+    Bucket("VoterCard");
+
+CREATE_PROOF_FROM_BUCKET 
+    Bucket("VoterCard") 
+    Proof("VoterCard Proof");
+
+CALL_METHOD
+   ComponentAddress("${dao}")
+   "claim_assets"
+   Proof("VoterCard Proof");
+
+CALL_METHOD 
+    ComponentAddress("${account}") 
+    "deposit_batch" 
+    Expression("ENTIRE_WORKTOP");
